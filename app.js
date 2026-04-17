@@ -823,13 +823,13 @@ const BOOK_MAIN_IDS = [
 ];
 
 const PHOTO_OVERRIDES = {
-  "puerto-madryn": "./assets/puerto-madryn-cover.png",
-  ushuaia: "./assets/rafael-road-1.png",
+  "puerto-madryn": "./assets/puerto-madryn-cover.jpg",
+  ushuaia: "./assets/rafael-road-1.jpg",
   torres: "./assets/torres-cover.jpg",
   calafate:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Perito_Moreno_Glacier_(30600924084).jpg",
   chalten: "https://commons.wikimedia.org/wiki/Special:FilePath/Fitz_Roy_El_Chalten_sunrise-13.jpg",
-  bariloche: "./assets/bariloche-cover.png",
+  bariloche: "./assets/bariloche-cover.jpg",
   "buenos-aires": "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madero,_Buenos_Aires_(40689219792)_(cropped).jpg"
 };
 
