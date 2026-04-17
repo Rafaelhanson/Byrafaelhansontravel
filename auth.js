@@ -90,6 +90,20 @@
     });
   }
 
+  async function bindUserEmailChip(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const session = await getSession();
+    const email = session?.user?.email;
+    if (!email) {
+      el.hidden = true;
+      el.textContent = "";
+      return;
+    }
+    el.textContent = email;
+    el.hidden = false;
+  }
+
   windowObj.AppAuth = {
     client,
     config,
@@ -100,6 +114,7 @@
     signUp,
     signOut,
     bindLogoutButton,
+    bindUserEmailChip,
     redirectAfterLogin
   };
 })(window);

@@ -38,6 +38,8 @@
       <input id="email" type="email" placeholder="seu@email.com" />
       <label for="password">Senha</label>
       <input id="password" type="password" placeholder="Sua senha" />
+      <label for="confirmPassword">Confirmar senha</label>
+      <input id="confirmPassword" type="password" placeholder="Repita sua senha" />
       <div class="row">
         <button id="loginBtn" class="primary">Entrar</button>
         <button id="signupBtn" class="ghost">Criar conta</button>
@@ -52,6 +54,7 @@
   <script>
     const emailEl = document.getElementById("email");
     const passwordEl = document.getElementById("password");
+    const confirmPasswordEl = document.getElementById("confirmPassword");
     const loginBtn = document.getElementById("loginBtn");
     const signupBtn = document.getElementById("signupBtn");
     const msgEl = document.getElementById("msg");
@@ -83,6 +86,14 @@
     signupBtn.addEventListener("click", async () => {
       try {
         showMessage("");
+        if (!passwordEl.value || !confirmPasswordEl.value) {
+          showMessage("Preencha senha e confirmação de senha.", "err");
+          return;
+        }
+        if (passwordEl.value !== confirmPasswordEl.value) {
+          showMessage("As senhas não coincidem. Confira e tente novamente.", "err");
+          return;
+        }
         await window.AppAuth.signUp(emailEl.value.trim(), passwordEl.value);
         showMessage("Conta criada. Verifique seu e-mail para confirmar e depois faça login.", "ok");
       } catch (error) {

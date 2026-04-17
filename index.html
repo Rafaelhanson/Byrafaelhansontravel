@@ -22,6 +22,7 @@
     .top{position:sticky;top:0;z-index:30;background:#f3f4efea;border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
     .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:8px}
     .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .user-chip{display:inline-flex;align-items:center;border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.5rem .75rem;font:700 .75rem/1 Inter;color:#2f3e52}
     .brand{font:900 clamp(1.5rem,2.8vw,2.2rem)/1 "Playfair Display",serif;color:var(--pine)}
     .nav{display:flex;gap:6px;flex-wrap:wrap}
     .nav a{text-decoration:none;color:var(--muted);font:700 .84rem/1 Inter;padding:.52rem .8rem;border-radius:999px}
@@ -93,6 +94,7 @@
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
       </nav>
+      <span id="userEmailChip" class="user-chip" hidden></span>
       <button id="logoutBtn" class="btn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Sair</button>
       </div>
     </div>
@@ -185,6 +187,9 @@
     window.AppAuth.requireAuth().then(() => {
       if (window.AppAuth && typeof window.AppAuth.bindLogoutButton === "function") {
         window.AppAuth.bindLogoutButton("logoutBtn");
+      }
+      if (window.AppAuth && typeof window.AppAuth.bindUserEmailChip === "function") {
+        window.AppAuth.bindUserEmailChip("userEmailChip");
       }
       const appScript = document.createElement("script");
       appScript.src = "./app.js";
