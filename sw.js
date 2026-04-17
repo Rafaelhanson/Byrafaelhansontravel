@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v3";
+const CACHE_NAME = "by-rafael-hanson-v4";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -6,12 +6,12 @@ const STATIC_ASSETS = [
   "./app.js",
   "./local.js",
   "./manifest.webmanifest",
-  "./assets/rafael-road-1.jpg",
-  "./assets/rafael-road-2.jpg",
-  "./assets/ushuaia-cover.jpg",
-  "./assets/torres-cover.jpg",
-  "./assets/puerto-madryn-cover.jpg",
-  "./assets/bariloche-cover.jpg"
+  "./rafael-road-1.jpg",
+  "./rafael-road-2.jpg",
+  "./ushuaia-cover.jpg",
+  "./torres-cover.jpg",
+  "./puerto-madryn-cover.jpg",
+  "./bariloche-cover.jpg"
 ];
 
 self.addEventListener("install", (event) => {
