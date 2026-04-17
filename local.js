@@ -70,6 +70,18 @@ const LOCAL_DATA = {
   }
 };
 
+const LOCAL_COVER_FALLBACKS = {
+  "puerto-madryn": "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madryn_(29380505724).jpg",
+  ushuaia: "https://images.unsplash.com/photo-1612298484490-72f0605e9055?auto=format&fit=crop&w=1600&q=80",
+  torres: "https://commons.wikimedia.org/wiki/Special:FilePath/Torres_del_Paine_y_cuernos_del_Paine,_montaje.jpg",
+  calafate:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Perito_Moreno_Glacier_(30600924084).jpg",
+  chalten: "https://commons.wikimedia.org/wiki/Special:FilePath/Fitz_Roy_El_Chalten_sunrise-13.jpg",
+  bariloche: "https://commons.wikimedia.org/wiki/Special:FilePath/San_Carlos_de_Bariloche_2009-11-27.jpg",
+  "buenos-aires":
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madero,_Buenos_Aires_(40689219792)_(cropped).jpg"
+};
+
 function getPlaceIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get("place") || "puerto-madryn";
@@ -112,7 +124,19 @@ function applyLocalPage() {
   if (routeButtonsEl) {
     routeButtonsEl.innerHTML = getRouteButtons(place, id).map((b) => `<a class="btn btn-highlight" href="${b.url}" target="_blank" rel="noopener noreferrer">${b.label}</a>`).join("");
   }
-  if (heroEl) heroEl.style.backgroundImage = `url('${place.image}')`;
+  if (heroEl) {
+    const fallbackHero =
+      LOCAL_COVER_FALLBACKS[id] ||
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80";
+    const imgProbe = new Image();
+    imgProbe.onload = () => {
+      heroEl.style.backgroundImage = `url('${place.image}')`;
+    };
+    imgProbe.onerror = () => {
+      heroEl.style.backgroundImage = `url('${fallbackHero}')`;
+    };
+    imgProbe.src = place.image;
+  }
   if (contentEl) {
     contentEl.innerHTML = place.contentHtml || "Envie o texto e eu colo aqui exatamente como você quiser para este local.";
     contentEl.querySelectorAll("a[href]").forEach((link) => {

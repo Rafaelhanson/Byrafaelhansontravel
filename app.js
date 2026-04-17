@@ -833,6 +833,18 @@ const PHOTO_OVERRIDES = {
   "buenos-aires": "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madero,_Buenos_Aires_(40689219792)_(cropped).jpg"
 };
 
+const PHOTO_FALLBACKS = {
+  "puerto-madryn": "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madryn_(29380505724).jpg",
+  ushuaia: "https://commons.wikimedia.org/wiki/Special:FilePath/Ushuaia_aerial.jpg",
+  torres: "https://commons.wikimedia.org/wiki/Special:FilePath/Torres_del_Paine_y_cuernos_del_Paine,_montaje.jpg",
+  calafate:
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Perito_Moreno_Glacier_(30600924084).jpg",
+  chalten: "https://commons.wikimedia.org/wiki/Special:FilePath/Fitz_Roy_El_Chalten_sunrise-13.jpg",
+  bariloche: "https://commons.wikimedia.org/wiki/Special:FilePath/San_Carlos_de_Bariloche_2009-11-27.jpg",
+  "buenos-aires":
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Puerto_Madero,_Buenos_Aires_(40689219792)_(cropped).jpg"
+};
+
 const DESCRIPTION_OVERRIDES = {
   "puerto-madryn": "Base para Península Valdés, vida selvagem e parada estratégica antes de seguir ao sul.",
   ushuaia: "Fim do mundo com atrações clássicas, trilhas, canal e ótima base para explorar a Terra do Fogo.",
@@ -912,7 +924,7 @@ function renderPlacesGrid() {
     .map(
       (poi) =>
         `<article class="place">
-          <img src="${poi.image}" alt="${poi.name}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80';">
+          <img src="${poi.image}" alt="${poi.name}" loading="lazy" referrerpolicy="no-referrer" data-fallback="${PHOTO_FALLBACKS[poi.id] || "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80"}" onerror="if(this.dataset.failed){this.onerror=null;return;} this.dataset.failed='1'; this.src=this.dataset.fallback;">
           <div class="c">
             <div class="tiny">${poi.category}</div>
             <h4>${poi.name}</h4>
