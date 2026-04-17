@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#23433c" />
+  <title>By Rafael Hanson • Login</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <style>
+    :root{--bg:#f3f4ef;--card:#fff;--text:#182230;--muted:#5f6b7a;--pine:#23433c;--accent:#e86c39;--border:#dfe4e8}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{width:min(480px,calc(100% - 24px));margin:6vh auto}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px}
+    h1{margin:.2rem 0 .3rem;font-size:1.8rem}
+    p{color:var(--muted);margin:.2rem 0 1rem}
+    label{display:block;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 5px;color:#445}
+    input{width:100%;border:1px solid #ccd4dc;border-radius:12px;padding:.72rem .75rem;font-size:.98rem}
+    .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    button{border:0;border-radius:999px;padding:.75rem 1rem;font-weight:700;cursor:pointer}
+    .primary{background:var(--accent);color:#fff}
+    .ghost{background:#fff;border:1px solid #ccd4dc;color:var(--text)}
+    .msg{margin-top:10px;font-size:.9rem}
+    .ok{color:#0f7a49}
+    .err{color:#9d2a2a}
+    .top-note{padding:10px;border:1px dashed #cbd5df;border-radius:12px;background:#f8fafc;font-size:.86rem;color:#415267}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>By Rafael Hanson</h1>
+      <p>Entre com seu login para acessar o guia.</p>
+      <div id="configWarn" class="top-note" hidden>
+        Para ativar o login, preencha <b>supabaseUrl</b> e <b>supabaseAnonKey</b> no arquivo <code>auth-config.js</code>.
+      </div>
+      <label for="email">E-mail</label>
+      <input id="email" type="email" placeholder="seu@email.com" />
+      <label for="password">Senha</label>
+      <input id="password" type="password" placeholder="Sua senha" />
+      <div class="row">
+        <button id="loginBtn" class="primary">Entrar</button>
+        <button id="signupBtn" class="ghost">Criar conta</button>
+      </div>
+      <div id="msg" class="msg"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./auth-config.js"></script>
+  <script src="./auth.js"></script>
+  <script>
+    const emailEl = document.getElementById("email");
+    const passwordEl = document.getElementById("password");
+    const loginBtn = document.getElementById("loginBtn");
+    const signupBtn = document.getElementById("signupBtn");
+    const msgEl = document.getElementById("msg");
+    const configWarnEl = document.getElementById("configWarn");
+
+    function showMessage(text, type) {
+      msgEl.textContent = text;
+      msgEl.className = `msg ${type || ""}`;
+    }
+
+    async function bootstrap() {
+      if (!window.AppAuth.hasSupabaseKeys()) {
+        configWarnEl.hidden = false;
+      } else {
+        const session = await window.AppAuth.getSession();
+        if (session) window.AppAuth.redirectAfterLogin();
+      }
+    }
+
+    loginBtn.addEventListener("click", async () => {
+      try {
+        showMessage("");
+        await window.AppAuth.signIn(emailEl.value.trim(), passwordEl.value);
+      } catch (error) {
+        showMessage(error.message || "Não foi possível entrar.", "err");
+      }
+    });
+
+    signupBtn.addEventListener("click", async () => {
+      try {
+        showMessage("");
+        await window.AppAuth.signUp(emailEl.value.trim(), passwordEl.value);
+        showMessage("Conta criada. Verifique seu e-mail para confirmar e depois faça login.", "ok");
+      } catch (error) {
+        showMessage(error.message || "Não foi possível criar a conta.", "err");
+      }
+    });
+
+    bootstrap();
+  </script>
+</body>
+</html>

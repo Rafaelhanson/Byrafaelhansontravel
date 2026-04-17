@@ -21,6 +21,7 @@
     .wrap{width:min(1180px,calc(100% - 24px));margin:0 auto}
     .top{position:sticky;top:0;z-index:30;background:#f3f4efea;border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
     .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:8px}
+    .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .brand{font:900 clamp(1.5rem,2.8vw,2.2rem)/1 "Playfair Display",serif;color:var(--pine)}
     .nav{display:flex;gap:6px;flex-wrap:wrap}
     .nav a{text-decoration:none;color:var(--muted);font:700 .84rem/1 Inter;padding:.52rem .8rem;border-radius:999px}
@@ -88,9 +89,12 @@
   <header class="top">
     <div class="wrap topbar">
       <div class="brand">By Rafael Hanson</div>
+      <div class="top-right">
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
       </nav>
+      <button id="logoutBtn" class="btn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Sair</button>
+      </div>
     </div>
   </header>
 
@@ -174,7 +178,19 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./auth-config.js"></script>
+  <script src="./auth.js"></script>
+  <script>
+    window.AppAuth.requireAuth().then(() => {
+      if (window.AppAuth && typeof window.AppAuth.bindLogoutButton === "function") {
+        window.AppAuth.bindLogoutButton("logoutBtn");
+      }
+      const appScript = document.createElement("script");
+      appScript.src = "./app.js";
+      document.body.appendChild(appScript);
+    });
+  </script>
   <script src="./pwa-register.js"></script>
 </body>
 </html>

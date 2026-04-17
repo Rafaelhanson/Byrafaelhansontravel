@@ -1,10 +1,13 @@
-const CACHE_NAME = "by-rafael-hanson-v4";
+const CACHE_NAME = "by-rafael-hanson-v5";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
+  "./login.html",
   "./local.html",
   "./app.js",
   "./local.js",
+  "./auth-config.js",
+  "./auth.js",
   "./manifest.webmanifest",
   "./rafael-road-1.jpg",
   "./rafael-road-2.jpg",
