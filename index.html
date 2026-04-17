@@ -81,6 +81,13 @@
     .stages{display:grid;grid-template-columns:280px 1fr;gap:9px}
     .stbtn{width:100%;text-align:left;border:1px solid #d8e0e8;border-radius:12px;background:#fff;padding:9px;cursor:pointer}
     .stbtn.active{background:#e8f0ed;border-color:#bdd0c9}
+    .saved-routes{display:grid;gap:8px}
+    .saved-route-item{border:1px solid #e4ebf0;border-radius:12px;padding:10px;background:#fff}
+    .saved-route-title{margin:0 0 5px;font:800 .98rem/1.2 Inter}
+    .saved-route-meta{font:.76rem/1.35 Inter;color:#617083}
+    .saved-route-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .saved-route-actions button{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.42rem .72rem;font:700 .74rem/1 Inter;cursor:pointer}
+    .saved-route-actions button:hover{background:#f6f8fa}
     .footer{margin:18px 0 25px;text-align:center;color:#6f7c8a;font:.78rem/1.2 Inter}
     @media (max-width:1000px){.planner,.stages,.grid,.local-grid{grid-template-columns:1fr}}
     @media (max-width:700px){.nav{display:none}.stats{grid-template-columns:1fr}}
@@ -92,7 +99,7 @@
       <div class="brand">By Rafael Hanson</div>
       <div class="top-right">
       <nav class="nav">
-        <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
+        <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#my-routes">Minhas rotas</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
       </nav>
       <span id="userEmailChip" class="user-chip" hidden></span>
       <button id="logoutBtn" class="btn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Sair</button>
@@ -143,7 +150,7 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-p" id="genBtn">Gerar roteiro</button>
-            <button class="btn" id="favBtn" style="border:1px solid #ccd4dc;background:#fff">Salvar favorito</button>
+            <button class="btn" id="favBtn" style="border:1px solid #ccd4dc;background:#fff">Salvar rota</button>
             <button class="btn" id="printBtn" style="border:1px solid #ccd4dc;background:#fff">Imprimir</button>
           </div>
           <div id="warn" class="help warn" style="margin-top:7px"></div>
@@ -157,6 +164,16 @@
           <div id="daysOut" class="days"></div>
         </div>
       </div>
+    </section>
+
+    <section id="my-routes" class="card">
+      <div class="head">
+        <span class="badge">planejamento salvo</span>
+        <h2>Minhas rotas</h2>
+        <p>Salve seus roteiros para abrir depois no mesmo login.</p>
+      </div>
+      <div id="savedRoutesList" class="saved-routes"></div>
+      <p id="savedRoutesEmpty" class="tiny">Nenhuma rota salva ainda.</p>
     </section>
 
     <section id="mapa" class="card" hidden>

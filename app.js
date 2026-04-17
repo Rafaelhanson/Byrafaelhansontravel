@@ -84,6 +84,8 @@ const destinosSectionEl = document.getElementById("destinos");
 const localDetailSectionEl = document.getElementById("localDetail");
 const localDetailBodyEl = document.getElementById("localDetailBody");
 const backToPlacesBtn = document.getElementById("backToPlaces");
+const savedRoutesListEl = document.getElementById("savedRoutesList");
+const savedRoutesEmptyEl = document.getElementById("savedRoutesEmpty");
 
 let selectedOrigin = null;
 const selectedDestinations = [null, null, null, null, null];
@@ -96,6 +98,8 @@ let borderCrossingsLayer = null;
 let dynamicRoutePois = [];
 let selectedCats = new Set(["fuel_station", "hotel", "camping"]);
 let maxPoiDistance = 999;
+let currentPlanSnapshot = null;
+let routesStorageKeyCache = null;
 
 const map = L.map("map").setView([-30, -58], 4);
 const mapTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
@@ -121,6 +125,69 @@ function debounce(fn, ms) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+async function getRoutesStorageKey() {
+  if (routesStorageKeyCache) return routesStorageKeyCache;
+  let email = "guest";
+  try {
+    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
+      const session = await window.AppAuth.getSession();
+      const userEmail = session?.user?.email?.trim().toLowerCase();
+      if (userEmail) email = userEmail;
+    }
+  } catch (_error) {}
+  routesStorageKeyCache = `myRoutes:${email}`;
+  return routesStorageKeyCache;
+}
+
+async function readSavedRoutes() {
+  const key = await getRoutesStorageKey();
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed;
+  } catch (_error) {
+    return [];
+  }
+}
+
+async function writeSavedRoutes(routes) {
+  const key = await getRoutesStorageKey();
+  localStorage.setItem(key, JSON.stringify(routes));
+}
+
+function renderSavedRoutes(routes = []) {
+  if (!savedRoutesListEl || !savedRoutesEmptyEl) return;
+  if (!routes.length) {
+    savedRoutesListEl.innerHTML = "";
+    savedRoutesEmptyEl.hidden = false;
+    return;
+  }
+  savedRoutesEmptyEl.hidden = true;
+  savedRoutesListEl.innerHTML = routes
+    .map((route) => {
+      const createdAt = new Date(route.createdAt || Date.now()).toLocaleString("pt-BR");
+      const destinationText = Array.isArray(route.destinations) && route.destinations.length ? route.destinations.join(" • ") : "-";
+      return `<article class="saved-route-item" data-route-id="${route.id}">
+        <h4 class="saved-route-title">${route.name || "Rota salva"}</h4>
+        <div class="saved-route-meta">${route.origin || "-"} → ${destinationText}</div>
+        <div class="saved-route-meta">${route.totalKm || 0} km • ${route.totalHours || 0} h • ${route.totalDays || 0} dias • salvo em ${createdAt}</div>
+        <div class="saved-route-actions">
+          <button type="button" data-action="open">Abrir</button>
+          <button type="button" data-action="delete">Excluir</button>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
+async function refreshSavedRoutes() {
+  const routes = await readSavedRoutes();
+  routes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  renderSavedRoutes(routes);
 }
 
 function updateDayLimitUi() {
@@ -290,6 +357,31 @@ async function geocodeIfNeeded(inputValue) {
     // fallback below
   }
   return fallbackByFuzzy(query);
+}
+
+async function applySavedRoute(route) {
+  if (!route || !route.origin) return;
+  warnEl.textContent = "Carregando rota salva...";
+
+  originInput.value = route.origin || "";
+  selectedOrigin = route.origin ? await geocodeIfNeeded(route.origin) : null;
+
+  const destinations = Array.isArray(route.destinations) ? route.destinations : [];
+  const destinationInputs = [dest1Input, dest2Input, dest3Input, dest4Input, dest5Input];
+  for (let i = 0; i < destinationInputs.length; i += 1) {
+    const value = destinations[i] || "";
+    destinationInputs[i].value = value;
+    selectedDestinations[i] = value ? await geocodeIfNeeded(value) : null;
+  }
+
+  if (styleEl && route.style) styleEl.value = route.style;
+  if (daysInputEl) daysInputEl.value = route.daysRequested || route.totalDays || "";
+  if (dayLimitModeEl && route.dayLimitMode) dayLimitModeEl.value = route.dayLimitMode;
+  updateDayLimitUi();
+  if (dayLimitValueEl && route.dayLimitValue) dayLimitValueEl.value = route.dayLimitValue;
+
+  await generatePlan();
+  warnEl.textContent = "Rota carregada em Minhas rotas.";
 }
 
 function haversineKm(a, b) {
@@ -728,7 +820,22 @@ async function generatePlan() {
       })
       .join("");
 
-    localStorage.setItem("lastPlan", JSON.stringify(days));
+    currentPlanSnapshot = {
+      id: String(Date.now()),
+      createdAt: Date.now(),
+      name: `${waypoints[0].name} → ${waypoints[waypoints.length - 1].name}`,
+      origin: waypoints[0].name,
+      destinations: waypoints.slice(1).map((point) => point.name),
+      style: styleEl.value,
+      dayLimitMode: limitMode,
+      dayLimitValue: dayLimit,
+      daysRequested: hasRequestedDays ? requestedDays : null,
+      totalKm: Math.round(totalKm),
+      totalHours: Number(totalHours.toFixed(1)),
+      totalDays: days.length,
+      days
+    };
+    localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
     syncMapViewport();
     const stayStops = boundaryPoints.slice(1).map((point) => point.coord);
@@ -743,16 +850,53 @@ async function generatePlan() {
 }
 
 genBtn.addEventListener("click", generatePlan);
-favBtn.addEventListener("click", () => {
-  const current = localStorage.getItem("lastPlan");
-  if (!current) {
+favBtn.addEventListener("click", async () => {
+  if (!currentPlanSnapshot) {
     warnEl.textContent = "Gere um roteiro antes de salvar.";
     return;
   }
-  localStorage.setItem("favoritePlan", current);
-  warnEl.textContent = "Roteiro favorito salvo neste navegador.";
+  const suggestedName = currentPlanSnapshot.name || "Minha rota";
+  const routeName = window.prompt("Nome para salvar esta rota:", suggestedName);
+  if (routeName === null) return;
+
+  const routes = await readSavedRoutes();
+  const entry = {
+    ...currentPlanSnapshot,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: routeName.trim() || suggestedName,
+    createdAt: Date.now()
+  };
+  routes.unshift(entry);
+  await writeSavedRoutes(routes.slice(0, 40));
+  await refreshSavedRoutes();
+  warnEl.textContent = "Rota salva em Minhas rotas.";
 });
 printBtn.addEventListener("click", () => window.print());
+
+if (savedRoutesListEl) {
+  savedRoutesListEl.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const container = button.closest("[data-route-id]");
+    if (!container) return;
+    const routeId = container.dataset.routeId;
+    const routes = await readSavedRoutes();
+    const route = routes.find((item) => item.id === routeId);
+    if (!route) return;
+
+    if (button.dataset.action === "open") {
+      await applySavedRoute(route);
+      return;
+    }
+
+    if (button.dataset.action === "delete") {
+      const filtered = routes.filter((item) => item.id !== routeId);
+      await writeSavedRoutes(filtered);
+      await refreshSavedRoutes();
+      warnEl.textContent = "Rota removida de Minhas rotas.";
+    }
+  });
+}
 
 const CATEGORY_LABELS = {
   fuel_station: "Postos",
@@ -996,4 +1140,5 @@ if (topicsGridEl) {
   ).join("");
 }
 
+refreshSavedRoutes();
 drawPoiMarkers();
