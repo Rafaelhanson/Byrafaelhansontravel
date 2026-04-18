@@ -203,6 +203,7 @@
     body.route-focus #home,
     body.route-focus #destinos,
     body.route-focus #my-routes,
+    body.route-focus #my-collabs,
     body.route-focus .footer{display:none}
     body.route-focus #planner .head p{display:none}
     body.route-focus #planner .route-focus-toggle{display:inline-flex}
@@ -228,6 +229,7 @@
         <div id="accountMenuPanel" class="account-menu" hidden>
           <div id="userEmailChip" class="account-email" hidden></div>
           <a class="account-link" href="#my-routes">Minhas rotas</a>
+          <a class="account-link" href="#my-collabs">Minhas colaborações</a>
           <button id="logoutBtn" class="account-logout">Sair da conta</button>
         </div>
       </div>
@@ -315,6 +317,16 @@
       </div>
       <div id="savedRoutesList" class="saved-routes"></div>
       <p id="savedRoutesEmpty" class="tiny">Nenhuma rota salva ainda.</p>
+    </section>
+
+    <section id="my-collabs" class="card">
+      <div class="head">
+        <span class="badge">comunidade</span>
+        <h2>Minhas colaborações</h2>
+        <p>Pontos colaborativos que você adicionou no mapa.</p>
+      </div>
+      <div id="userCollabsList" class="saved-routes"></div>
+      <p id="userCollabsEmpty" class="tiny">Você ainda não adicionou pontos colaborativos.</p>
     </section>
 
     <section id="mapa" class="card" hidden>

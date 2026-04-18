@@ -98,6 +98,8 @@ const localDetailBodyEl = document.getElementById("localDetailBody");
 const backToPlacesBtn = document.getElementById("backToPlaces");
 const savedRoutesListEl = document.getElementById("savedRoutesList");
 const savedRoutesEmptyEl = document.getElementById("savedRoutesEmpty");
+const userCollabsListEl = document.getElementById("userCollabsList");
+const userCollabsEmptyEl = document.getElementById("userCollabsEmpty");
 const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
 const useGpsPointBtn = document.getElementById("useGpsPointBtn");
 const communityStatusEl = document.getElementById("communityStatus");
@@ -165,7 +167,7 @@ async function getCurrentUserEmail() {
   try {
     if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
       const session = await window.AppAuth.getSession();
-      return session?.user?.email || "usuario@sem-email";
+      return (session?.user?.email || "usuario@sem-email").trim().toLowerCase();
     }
   } catch (_error) {}
   return "usuario@sem-email";
@@ -1043,6 +1045,72 @@ async function loadCommunityPoints() {
   setCommunityStatus(`Pontos colaborativos carregados: ${communityPoints.length}.`);
 }
 
+function renderMyCollaborations(items = []) {
+  if (!userCollabsListEl || !userCollabsEmptyEl) return;
+  if (!items.length) {
+    userCollabsListEl.innerHTML = "";
+    userCollabsEmptyEl.hidden = false;
+    return;
+  }
+  userCollabsEmptyEl.hidden = true;
+  userCollabsListEl.innerHTML = items
+    .map((item) => {
+      const createdAt = item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-";
+      const category = COMMUNITY_CATEGORY_LABELS[item.category] || item.category || "Ponto";
+      const photoTag = item.photo_url
+        ? `<img src="${item.photo_url}" alt="foto colaboração" style="width:100%;max-width:220px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #dce4ec;margin-top:8px">`
+        : "";
+      return `<article class="saved-route-item" data-collab-id="${item.id}">
+        <h4 class="saved-route-title">${item.name || "Ponto colaborativo"}</h4>
+        <div class="saved-route-meta">${category} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
+        <div class="saved-route-meta">${item.description || "Sem descrição."}</div>
+        <div class="saved-route-meta">Criado em: ${createdAt}</div>
+        ${photoTag}
+        <div class="saved-route-actions">
+          <button type="button" data-action="open-map">Ver no mapa</button>
+          <button type="button" data-action="delete-collab" class="danger" title="Excluir colaboração">&#128465;</button>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
+async function refreshMyCollaborations() {
+  const sb = initSupabaseClient();
+  if (!sb) {
+    renderMyCollaborations([]);
+    return;
+  }
+  const email = await getCurrentUserEmail();
+  const { data, error } = await sb
+    .from("community_points")
+    .select("id,name,category,description,lat,lon,photo_url,user_email,created_at")
+    .eq("user_email", email)
+    .order("created_at", { ascending: false })
+    .limit(200);
+
+  if (error) {
+    renderMyCollaborations([]);
+    setCommunityStatus("Não foi possível carregar suas colaborações.");
+    return;
+  }
+  renderMyCollaborations(data || []);
+}
+
+async function deleteMyCollaboration(collabId) {
+  const sb = initSupabaseClient();
+  if (!sb || !collabId) return;
+  try {
+    const { error } = await sb.from("community_points").delete().eq("id", collabId);
+    if (error) throw error;
+    await loadCommunityPoints();
+    await refreshMyCollaborations();
+    setCommunityStatus("Colaboração removida.");
+  } catch (_error) {
+    setCommunityStatus("Não foi possível excluir. Verifique a policy de delete no Supabase.");
+  }
+}
+
 async function uploadCommunityPhoto(file) {
   if (!file) return null;
   const sb = initSupabaseClient();
@@ -1099,6 +1167,7 @@ async function saveCommunityPoint(event) {
 
     closeCommunityModal();
     await loadCommunityPoints();
+    await refreshMyCollaborations();
     setCommunityStatus("Ponto colaborativo salvo com sucesso.");
   } catch (_error) {
     setCommunityStatus("Não foi possível salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
@@ -1111,6 +1180,7 @@ async function saveCommunityPoint(event) {
 function setupCommunityUi() {
   initSupabaseClient();
   loadCommunityPoints();
+  refreshMyCollaborations();
 
   addCommunityPointBtn?.addEventListener("click", () => {
     isAddingCommunityPoint = true;
@@ -1153,6 +1223,29 @@ function setupCommunityUi() {
   });
 
   communityFormEl?.addEventListener("submit", saveCommunityPoint);
+
+  userCollabsListEl?.addEventListener("click", async (event) => {
+    const container = event.target.closest("[data-collab-id]");
+    if (!container) return;
+    const collabId = container.dataset.collabId;
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+
+    if (button.dataset.action === "open-map") {
+      openCollaborativeMap();
+      const item = communityPoints.find((point) => point.id === collabId);
+      if (item) {
+        map.setView([Number(item.lat), Number(item.lon)], 11);
+      }
+      return;
+    }
+
+    if (button.dataset.action === "delete-collab") {
+      const confirmDelete = window.confirm("Deseja excluir esta colaboração?");
+      if (!confirmDelete) return;
+      await deleteMyCollaboration(collabId);
+    }
+  });
 }
 
 async function generatePlan() {
