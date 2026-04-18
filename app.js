@@ -1119,7 +1119,7 @@ function openCommunityModal(lat, lon, item = null) {
     communityLonEl.value = lon.toFixed(6);
     setDraftMarker(lat, lon);
   }
-  if (communitySaveBtn) communitySaveBtn.textContent = editingCommunityId ? "Salvar alteraÃ§Ãµes" : "Salvar ponto";
+  if (communitySaveBtn) communitySaveBtn.textContent = editingCommunityId ? "Salvar alterações" : "Salvar ponto";
   communityModalEl.hidden = false;
 }
 
@@ -1299,7 +1299,7 @@ async function saveCommunityPoint(event) {
     closeCommunityModal();
     await loadCommunityPoints();
     await refreshMyCollaborations();
-    setCommunityStatus(isEditing ? "ColaboraÃ§Ã£o atualizada com sucesso." : "Ponto colaborativo salvo com sucesso.");
+    setCommunityStatus(isEditing ? "Colaboração atualizada com sucesso." : "Ponto colaborativo salvo com sucesso.");
   } catch (_error) {
     setCommunityStatus("Não foi possível salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
   } finally {
@@ -1318,7 +1318,7 @@ function setupCommunityUi() {
     revealMapSection();
     const center = map.getCenter();
     openCommunityModal(Number(center.lat), Number(center.lng));
-    setCommunityStatus("FormulÃ¡rio aberto. Ajuste a posiÃ§Ã£o clicando no mapa ou arrastando o alfinete.");
+    setCommunityStatus("Formulário aberto. Ajuste a posição clicando no mapa ou arrastando o alfinete.");
   });
 
   useGpsPointBtn?.addEventListener("click", () => {
@@ -1346,7 +1346,7 @@ function setupCommunityUi() {
       if (communityLatEl) communityLatEl.value = Number(lat).toFixed(6);
       if (communityLonEl) communityLonEl.value = Number(lng).toFixed(6);
       if (communityModalEl && communityModalEl.hidden) openCommunityModal(lat, lng);
-      setCommunityStatus("Coordenada atualizada no formulÃ¡rio.");
+      setCommunityStatus("Coordenada atualizada no formulário.");
       isAddingCommunityPoint = false;
     }
   });
@@ -1386,11 +1386,11 @@ function setupCommunityUi() {
     if (button.dataset.action === "edit-collab") {
       const item = communityPoints.find((point) => point.id === collabId);
       if (!item) {
-        setCommunityStatus("NÃ£o encontrei a colaboraÃ§Ã£o para editar.");
+        setCommunityStatus("Não encontrei a colaboração para editar.");
         return;
       }
       openCommunityModal(Number(item.lat), Number(item.lon), item);
-      setCommunityStatus("Edite os campos e salve as alteraÃ§Ãµes.");
+      setCommunityStatus("Edite os campos e salve as alterações.");
       return;
     }
 
