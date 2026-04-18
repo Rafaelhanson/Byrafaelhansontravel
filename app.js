@@ -100,6 +100,9 @@ const savedRoutesListEl = document.getElementById("savedRoutesList");
 const savedRoutesEmptyEl = document.getElementById("savedRoutesEmpty");
 const userCollabsListEl = document.getElementById("userCollabsList");
 const userCollabsEmptyEl = document.getElementById("userCollabsEmpty");
+const collabDetailSectionEl = document.getElementById("collab-detail");
+const collabDetailBodyEl = document.getElementById("collabDetailBody");
+const backToCollabsBtn = document.getElementById("backToCollabsBtn");
 const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
 const useGpsPointBtn = document.getElementById("useGpsPointBtn");
 const communityStatusEl = document.getElementById("communityStatus");
@@ -111,6 +114,7 @@ const communityDescriptionEl = document.getElementById("communityDescription");
 const communityLatEl = document.getElementById("communityLat");
 const communityLonEl = document.getElementById("communityLon");
 const communityPhotoEl = document.getElementById("communityPhoto");
+const communityRemovePhotoEl = document.getElementById("communityRemovePhoto");
 const communityCancelBtn = document.getElementById("communityCancelBtn");
 const communitySaveBtn = document.getElementById("communitySaveBtn");
 
@@ -131,6 +135,10 @@ let communityLayer = null;
 let communityPoints = [];
 let isAddingCommunityPoint = false;
 let supabaseClient = null;
+let editingCommunityId = null;
+let editingCommunityPhotoUrl = null;
+let communityDraftMarker = null;
+let myCollaborationsCache = [];
 
 const map = L.map("map").setView([-30, -58], 4);
 const mapTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
@@ -219,6 +227,60 @@ function setDestinationsVisibility(show) {
   destinosSectionEl.hidden = !show;
 }
 
+function setCollabDetailVisibility(show) {
+  if (!collabDetailSectionEl) return;
+  collabDetailSectionEl.hidden = !show;
+}
+
+function renderCollabDetail(item) {
+  if (!collabDetailBodyEl) return;
+  if (!item) {
+    collabDetailBodyEl.innerHTML = `<p class="tiny">Colaboração não encontrada.</p>`;
+    return;
+  }
+  const createdAt = item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-";
+  const category = COMMUNITY_CATEGORY_LABELS[item.category] || item.category || "Ponto";
+  const photoHtml = item.photo_url ? `<img src="${item.photo_url}" alt="foto colaboração" class="collab-detail-photo">` : "";
+  const mapsUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
+  collabDetailBodyEl.innerHTML = `
+    <article class="collab-detail-card">
+      <div class="collab-detail-head">
+        <div>
+          <h3 class="collab-detail-title">${item.name || "Ponto colaborativo"}</h3>
+          <div class="collab-detail-meta">${category} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
+          <div class="collab-detail-meta">Criado em: ${createdAt}</div>
+          <p class="collab-detail-meta" style="margin-top:8px">${item.description || "Sem descrição."}</p>
+          <p class="collab-detail-meta"><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a></p>
+        </div>
+        <div class="saved-route-actions" style="margin-top:0">
+          <button type="button" data-action="detail-edit">Editar</button>
+          <button type="button" data-action="detail-delete" class="danger" title="Excluir colaboração">&#128465;</button>
+        </div>
+      </div>
+      ${photoHtml}
+    </article>
+  `;
+  const editBtn = collabDetailBodyEl.querySelector("[data-action='detail-edit']");
+  const delBtn = collabDetailBodyEl.querySelector("[data-action='detail-delete']");
+  editBtn?.addEventListener("click", () => {
+    openCommunityModal(Number(item.lat), Number(item.lon), item);
+    setCommunityStatus("Edite os campos e salve as alterações.");
+  });
+  delBtn?.addEventListener("click", async () => {
+    const confirmDelete = window.confirm("Deseja excluir esta colaboração?");
+    if (!confirmDelete) return;
+    await deleteMyCollaboration(item.id);
+    window.location.hash = "#my-collabs";
+  });
+}
+
+function openCollabDetailById(collabId) {
+  const item = myCollaborationsCache.find((p) => p.id === collabId) || communityPoints.find((p) => p.id === collabId);
+  renderCollabDetail(item || null);
+  setCollabDetailVisibility(true);
+  if (destinosSectionEl) destinosSectionEl.hidden = true;
+}
+
 function openCollaborativeMap() {
   exitRouteFocusMode();
   revealMapSection();
@@ -235,6 +297,13 @@ function handleSectionVisibilityByHash(hash) {
   const normalized = hash || "#home";
   const showDestinos = normalized === "#home" || normalized === "#destinos";
   setDestinationsVisibility(showDestinos);
+  if (normalized.startsWith("#collab/")) {
+    exitRouteFocusMode();
+    const collabId = decodeURIComponent(normalized.replace("#collab/", "").trim());
+    openCollabDetailById(collabId);
+    return;
+  }
+  setCollabDetailVisibility(false);
 }
 
 function enterRouteFocusMode() {
@@ -318,7 +387,8 @@ async function readSavedRoutes() {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed;
-  } catch (_error) {
+  } catch (error) {
+    console.error(error);
     return [];
   }
 }
@@ -1008,12 +1078,48 @@ function setCommunityStatus(text) {
   if (communityStatusEl) communityStatusEl.textContent = text;
 }
 
-function openCommunityModal(lat, lon) {
+function setDraftMarker(lat, lon) {
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return;
+  const coords = [Number(lat), Number(lon)];
+  if (!communityDraftMarker) {
+    communityDraftMarker = L.marker(coords, { draggable: true }).addTo(map);
+    communityDraftMarker.bindPopup("Ponto em edição");
+    communityDraftMarker.on("dragend", () => {
+      const p = communityDraftMarker.getLatLng();
+      if (communityLatEl) communityLatEl.value = Number(p.lat).toFixed(6);
+      if (communityLonEl) communityLonEl.value = Number(p.lng).toFixed(6);
+    });
+  } else {
+    communityDraftMarker.setLatLng(coords);
+  }
+}
+
+function clearDraftMarker() {
+  if (!communityDraftMarker) return;
+  map.removeLayer(communityDraftMarker);
+  communityDraftMarker = null;
+}
+
+function openCommunityModal(lat, lon, item = null) {
   if (!communityModalEl) return;
+  editingCommunityId = item?.id || null;
+  editingCommunityPhotoUrl = item?.photo_url || null;
+
+  if (communityFormEl) communityFormEl.reset();
+  if (communityRemovePhotoEl) communityRemovePhotoEl.checked = false;
+
+  if (item) {
+    if (communityNameEl) communityNameEl.value = item.name || "";
+    if (communityCategoryEl) communityCategoryEl.value = item.category || "camping";
+    if (communityDescriptionEl) communityDescriptionEl.value = item.description || "";
+  }
+
   if (typeof lat === "number" && typeof lon === "number") {
     communityLatEl.value = lat.toFixed(6);
     communityLonEl.value = lon.toFixed(6);
+    setDraftMarker(lat, lon);
   }
+  if (communitySaveBtn) communitySaveBtn.textContent = editingCommunityId ? "Salvar alteraÃ§Ãµes" : "Salvar ponto";
   communityModalEl.hidden = false;
 }
 
@@ -1021,6 +1127,10 @@ function closeCommunityModal() {
   if (!communityModalEl) return;
   communityModalEl.hidden = true;
   communityFormEl?.reset();
+  editingCommunityId = null;
+  editingCommunityPhotoUrl = null;
+  clearDraftMarker();
+  if (communitySaveBtn) communitySaveBtn.textContent = "Salvar ponto";
 }
 
 async function loadCommunityPoints() {
@@ -1061,13 +1171,15 @@ function renderMyCollaborations(items = []) {
         ? `<img src="${item.photo_url}" alt="foto colaboração" style="width:100%;max-width:220px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #dce4ec;margin-top:8px">`
         : "";
       return `<article class="saved-route-item" data-collab-id="${item.id}">
-        <h4 class="saved-route-title">${item.name || "Ponto colaborativo"}</h4>
+        <h4 class="saved-route-title"><a class="collab-title-link" href="#collab/${item.id}">${item.name || "Ponto colaborativo"}</a></h4>
         <div class="saved-route-meta">${category} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
         <div class="saved-route-meta">${item.description || "Sem descrição."}</div>
         <div class="saved-route-meta">Criado em: ${createdAt}</div>
         ${photoTag}
         <div class="saved-route-actions">
+          <button type="button" data-action="open-detail">Detalhes</button>
           <button type="button" data-action="open-map">Ver no mapa</button>
+          <button type="button" data-action="edit-collab">Editar</button>
           <button type="button" data-action="delete-collab" class="danger" title="Excluir colaboração">&#128465;</button>
         </div>
       </article>`;
@@ -1094,19 +1206,22 @@ async function refreshMyCollaborations() {
     setCommunityStatus("Não foi possível carregar suas colaborações.");
     return;
   }
-  renderMyCollaborations(data || []);
+  myCollaborationsCache = data || [];
+  renderMyCollaborations(myCollaborationsCache);
 }
 
 async function deleteMyCollaboration(collabId) {
   const sb = initSupabaseClient();
   if (!sb || !collabId) return;
   try {
-    const { error } = await sb.from("community_points").delete().eq("id", collabId);
+    const email = await getCurrentUserEmail();
+    const { error } = await sb.from("community_points").delete().eq("id", collabId).eq("user_email", email);
     if (error) throw error;
     await loadCommunityPoints();
     await refreshMyCollaborations();
     setCommunityStatus("Colaboração removida.");
-  } catch (_error) {
+  } catch (error) {
+    console.error(error);
     setCommunityStatus("Não foi possível excluir. Verifique a policy de delete no Supabase.");
   }
 }
@@ -1146,11 +1261,17 @@ async function saveCommunityPoint(event) {
   }
 
   try {
+    const isEditing = Boolean(editingCommunityId);
     communitySaveBtn.disabled = true;
     communitySaveBtn.textContent = "Salvando...";
     const photoFile = communityPhotoEl?.files?.[0] || null;
-    const photoUrl = await uploadCommunityPhoto(photoFile);
     const userEmail = await getCurrentUserEmail();
+    let photoUrl = editingCommunityPhotoUrl || null;
+    if (photoFile) {
+      photoUrl = await uploadCommunityPhoto(photoFile);
+    } else if (communityRemovePhotoEl?.checked) {
+      photoUrl = null;
+    }
 
     const payload = {
       name: communityNameEl.value.trim(),
@@ -1158,17 +1279,27 @@ async function saveCommunityPoint(event) {
       description: communityDescriptionEl.value.trim(),
       lat,
       lon,
-      photo_url: photoUrl,
-      user_email: userEmail
+      photo_url: photoUrl
     };
 
-    const { error } = await sb.from("community_points").insert(payload);
+    let error = null;
+    if (editingCommunityId) {
+      const result = await sb
+        .from("community_points")
+        .update(payload)
+        .eq("id", editingCommunityId)
+        .eq("user_email", userEmail);
+      error = result.error;
+    } else {
+      const result = await sb.from("community_points").insert({ ...payload, user_email: userEmail });
+      error = result.error;
+    }
     if (error) throw error;
 
     closeCommunityModal();
     await loadCommunityPoints();
     await refreshMyCollaborations();
-    setCommunityStatus("Ponto colaborativo salvo com sucesso.");
+    setCommunityStatus(isEditing ? "ColaboraÃ§Ã£o atualizada com sucesso." : "Ponto colaborativo salvo com sucesso.");
   } catch (_error) {
     setCommunityStatus("Não foi possível salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
   } finally {
@@ -1184,7 +1315,10 @@ function setupCommunityUi() {
 
   addCommunityPointBtn?.addEventListener("click", () => {
     isAddingCommunityPoint = true;
-    setCommunityStatus("Modo ativo: clique no mapa para marcar o ponto colaborativo.");
+    revealMapSection();
+    const center = map.getCenter();
+    openCommunityModal(Number(center.lat), Number(center.lng));
+    setCommunityStatus("FormulÃ¡rio aberto. Ajuste a posiÃ§Ã£o clicando no mapa ou arrastando o alfinete.");
   });
 
   useGpsPointBtn?.addEventListener("click", () => {
@@ -1206,11 +1340,15 @@ function setupCommunityUi() {
   });
 
   map.on("click", (event) => {
-    if (!isAddingCommunityPoint) return;
-    isAddingCommunityPoint = false;
     const { lat, lng } = event.latlng;
-    openCommunityModal(lat, lng);
-    setCommunityStatus("Coordenada marcada. Agora preencha e salve.");
+    if (isAddingCommunityPoint || (communityModalEl && !communityModalEl.hidden)) {
+      setDraftMarker(lat, lng);
+      if (communityLatEl) communityLatEl.value = Number(lat).toFixed(6);
+      if (communityLonEl) communityLonEl.value = Number(lng).toFixed(6);
+      if (communityModalEl && communityModalEl.hidden) openCommunityModal(lat, lng);
+      setCommunityStatus("Coordenada atualizada no formulÃ¡rio.");
+      isAddingCommunityPoint = false;
+    }
   });
 
   communityCancelBtn?.addEventListener("click", () => {
@@ -1237,6 +1375,22 @@ function setupCommunityUi() {
       if (item) {
         map.setView([Number(item.lat), Number(item.lon)], 11);
       }
+      return;
+    }
+
+    if (button.dataset.action === "open-detail") {
+      window.location.hash = `#collab/${collabId}`;
+      return;
+    }
+
+    if (button.dataset.action === "edit-collab") {
+      const item = communityPoints.find((point) => point.id === collabId);
+      if (!item) {
+        setCommunityStatus("NÃ£o encontrei a colaboraÃ§Ã£o para editar.");
+        return;
+      }
+      openCommunityModal(Number(item.lat), Number(item.lon), item);
+      setCommunityStatus("Edite os campos e salve as alteraÃ§Ãµes.");
       return;
     }
 
@@ -1752,6 +1906,14 @@ document.querySelectorAll(".nav a").forEach((link) => {
     if (href !== "#mapa") exitRouteFocusMode();
     handleSectionVisibilityByHash(href);
   });
+});
+
+backToCollabsBtn?.addEventListener("click", () => {
+  window.location.hash = "#my-collabs";
+});
+
+window.addEventListener("hashchange", () => {
+  handleSectionVisibilityByHash(window.location.hash || "#home");
 });
 
 bindAccountMenu();
