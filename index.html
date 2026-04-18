@@ -45,6 +45,16 @@
     .top{position:sticky;top:0;z-index:30;background:#f3f4efea;border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
     .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:8px}
     .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .quick-map-btn{
+      border:1px solid #ccd4dc;
+      background:#fff;
+      border-radius:999px;
+      padding:.58rem .86rem;
+      font:700 .78rem/1 Inter;
+      color:#182230;
+      cursor:pointer;
+    }
+    .quick-map-btn:hover{background:#f6f8fb}
     .account{position:relative}
     .account-btn{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.58rem .86rem;font:700 .78rem/1 Inter;color:#182230;cursor:pointer}
     .account-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:220px;background:#fff;border:1px solid #d8e0e8;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14);padding:8px;display:grid;gap:4px;z-index:40}
@@ -212,6 +222,7 @@
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#my-routes">Minhas rotas</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
       </nav>
+      <button id="quickMapBtn" class="quick-map-btn" type="button">Mapa colaborativo</button>
       <div class="account">
         <button id="accountMenuBtn" class="account-btn">Minha Conta</button>
         <div id="accountMenuPanel" class="account-menu" hidden>

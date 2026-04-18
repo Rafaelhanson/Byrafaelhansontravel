@@ -78,6 +78,7 @@ const routeShareBtn = document.getElementById("routeShareBtn");
 const routeSaveBtn = document.getElementById("routeSaveBtn");
 const routePdfBtn = document.getElementById("routePdfBtn");
 const routeFocusBackBtn = document.getElementById("routeFocusBackBtn");
+const quickMapBtn = document.getElementById("quickMapBtn");
 const accountMenuBtn = document.getElementById("accountMenuBtn");
 const accountMenuPanel = document.getElementById("accountMenuPanel");
 const styleEl = document.getElementById("style");
@@ -214,6 +215,18 @@ function bindAccountMenu() {
 function setDestinationsVisibility(show) {
   if (!destinosSectionEl) return;
   destinosSectionEl.hidden = !show;
+}
+
+function openCollaborativeMap() {
+  exitRouteFocusMode();
+  revealMapSection();
+  handleSectionVisibilityByHash("#mapa");
+  window.location.hash = "#mapa";
+  setCommunityStatus("Use os botões para adicionar ponto colaborativo.");
+  requestAnimationFrame(() => {
+    map.invalidateSize();
+    mapSectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function handleSectionVisibilityByHash(hash) {
@@ -1649,6 +1662,7 @@ document.querySelectorAll(".nav a").forEach((link) => {
 });
 
 bindAccountMenu();
+quickMapBtn?.addEventListener("click", openCollaborativeMap);
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
