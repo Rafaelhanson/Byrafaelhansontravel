@@ -15,13 +15,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    :root{--bg:#f3f4ef;--surface:#fff;--text:#182230;--muted:#5f6b7a;--pine:#23433c;--accent:#e86c39;--border:#dfe4e8;--radius:18px}
+    :root{
+      --bg:#0b1d23;
+      --surface:#0f1f22;
+      --text:#e4f0ea;
+      --muted:#93b1a8;
+      --pine:#9fe0c4;
+      --accent:#ff8752;
+      --border:#27443f;
+      --menu-glow:#f7c86b;
+      --radius:24px
+    }
     *{box-sizing:border-box}
     body{
       margin:0;
       font-family:Inter,system-ui,sans-serif;
       color:var(--text);
-      background:var(--bg);
+      background:
+        radial-gradient(circle at 10% -10%, #1e4a4f 0%, #14363e 36%, #0d2a31 62%, #0b1d23 100%);
       position:relative;
       min-height:100vh;
     }
@@ -30,6 +41,7 @@
       position:fixed;
       inset:0;
       background:url("./assets/rafael-road-2.jpg") center center/cover no-repeat;
+      opacity:.34;
       z-index:-2;
       pointer-events:none;
     }
@@ -37,105 +49,401 @@
       content:"";
       position:fixed;
       inset:0;
-      background:rgba(14,23,33,.58);
+      background:linear-gradient(180deg,rgba(10,24,30,.42),rgba(10,24,30,.72));
       z-index:-1;
       pointer-events:none;
     }
-    .wrap{width:min(1180px,calc(100% - 24px));margin:0 auto;position:relative;z-index:1}
-    .top{position:sticky;top:0;z-index:30;background:#f3f4efea;border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:8px}
-    .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    .quick-map-btn{
-      border:1px solid #ccd4dc;
-      background:#fff;
-      border-radius:999px;
-      padding:.58rem .86rem;
-      font:700 .78rem/1 Inter;
-      color:#182230;
-      cursor:pointer;
+    .wrap{width:min(1220px,calc(100% - 26px));margin:0 auto;position:relative;z-index:1}
+    .top{
+      position:sticky;
+      top:0;
+      z-index:30;
+      background:rgba(10,27,32,.78);
+      border-bottom:0;
+      backdrop-filter:blur(10px);
+      box-shadow:0 10px 28px rgba(0,0,0,.32);
     }
-    .quick-map-btn:hover{background:#f6f8fb}
+    .topbar{display:flex;justify-content:center;align-items:center;padding:14px 0;gap:10px}
+    .top-right{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;width:100%}
+    .quick-map-btn{
+      border:0;
+      background:transparent;
+      border-radius:0;
+      padding:.35rem 0;
+      font:500 .83rem/1.1 Inter;
+      letter-spacing:.01em;
+      color:#bcd4c8;
+      cursor:pointer;
+      transition:all .2s ease;
+      position:relative;
+    }
+    .quick-map-btn::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:-7px;
+      height:2px;
+      background:transparent;
+      transition:all .2s ease;
+    }
+    .quick-map-btn:hover{color:#f3fff9}
+    .quick-map-btn:hover::after{background:rgba(134,209,165,.72)}
     .account{position:relative}
-    .account-btn{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.58rem .86rem;font:700 .78rem/1 Inter;color:#182230;cursor:pointer}
-    .account-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:220px;background:#fff;border:1px solid #d8e0e8;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14);padding:8px;display:grid;gap:4px;z-index:40}
+    .account-btn{
+      border:0;
+      background:transparent;
+      border-radius:0;
+      padding:.35rem 0;
+      font:500 .83rem/1.1 Inter;
+      letter-spacing:.01em;
+      color:#bcd4c8;
+      cursor:pointer;
+      transition:all .2s ease;
+      position:relative;
+    }
+    .account-btn::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:-7px;
+      height:2px;
+      background:transparent;
+      transition:all .2s ease;
+    }
+    .account-btn:hover{color:#f3fff9}
+    .account-btn:hover::after{background:rgba(134,209,165,.72)}
+    .quick-map-btn.active,.account-btn.active{
+      color:#f3fff9;
+      text-shadow:0 0 14px rgba(134,209,165,.4);
+    }
+    .quick-map-btn.active::after,.account-btn.active::after{
+      background:#86d1a5;
+      box-shadow:0 0 14px rgba(134,209,165,.72);
+    }
+    .account-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:220px;background:#102521;border:1px solid #2f554b;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.34);padding:8px;display:grid;gap:4px;z-index:40}
     .account-menu[hidden]{display:none}
-    .account-email{padding:8px 10px;font:700 .74rem/1.3 Inter;color:#5f6b7a;border-bottom:1px solid #eef2f6;word-break:break-all}
-    .account-link,.account-logout{display:block;width:100%;text-align:left;border:0;background:#fff;border-radius:8px;padding:.58rem .65rem;font:700 .8rem/1 Inter;color:#1f2b37;cursor:pointer;text-decoration:none}
-    .account-link:hover,.account-logout:hover{background:#f6f8fb}
-    .brand{font:900 clamp(1.5rem,2.8vw,2.2rem)/1 "Playfair Display",serif;color:var(--pine)}
+    .account-email{padding:8px 10px;font:700 .74rem/1.3 Inter;color:#9ec1b6;border-bottom:1px solid #294840;word-break:break-all}
+    .account-link,.account-logout{display:block;width:100%;text-align:left;border:0;background:#102521;border-radius:8px;padding:.58rem .65rem;font:700 .8rem/1 Inter;color:#e6f5ee;cursor:pointer;text-decoration:none}
+    .account-link:hover,.account-logout:hover{background:#17362f}
+    .brand{
+      font:900 clamp(1.8rem,3vw,2.75rem)/1 "Playfair Display",serif;
+      color:#d9f0e8;
+      letter-spacing:-.02em
+    }
+    .brand{display:none}
     .nav{display:flex;gap:6px;flex-wrap:wrap}
-    .nav a{text-decoration:none;color:var(--muted);font:700 .84rem/1 Inter;padding:.52rem .8rem;border-radius:999px}
-    .nav a:hover,.nav a.active{background:#fff;color:var(--text)}
-    .hero{margin:14px 0;border-radius:24px;overflow:hidden;min-height:360px;color:#fff;background:linear-gradient(120deg,#183630e8,#18363075),url("./rafael-road-2.jpg") center/cover}
-    .hero-c{padding:32px 18px;max-width:760px}
-    .chip{display:inline-block;background:#ffffff22;border:1px solid #ffffff77;border-radius:999px;padding:.34rem .74rem;font:700 .74rem/1 Inter;text-transform:uppercase}
-    h1{font:900 clamp(2.1rem,6vw,4.2rem)/1.03 "Playfair Display",serif;margin:.6rem 0 .8rem}
-    .hero p{margin:0;color:#edf1f4}
+    .nav a{
+      text-decoration:none;
+      color:#bcd4c8;
+      font:500 .83rem/1.1 Inter;
+      letter-spacing:.01em;
+      padding:.35rem 0;
+      margin-right:18px;
+      border-radius:0;
+      border:0;
+      background:transparent;
+      transition:all .18s ease;
+      position:relative;
+    }
+    .nav a::after{
+      content:"";
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:-7px;
+      height:2px;
+      background:transparent;
+      transition:all .2s ease;
+    }
+    .nav a:hover{
+      color:#f3fff9;
+    }
+    .nav a:hover::after{background:rgba(134,209,165,.72)}
+    .nav a.active{
+      color:#f3fff9;
+      text-shadow:0 0 14px rgba(134,209,165,.42);
+    }
+    .nav a.active::after{
+      background:#86d1a5;
+      box-shadow:0 0 14px rgba(134,209,165,.72);
+    }
+    .hero{
+      margin:18px 0;
+      border-radius:34px;
+      overflow:hidden;
+      min-height:470px;
+      color:#fff;
+      background:
+        linear-gradient(108deg,rgba(7,20,24,.88) 8%,rgba(14,47,45,.48) 64%,rgba(14,47,45,.24) 100%),
+        url("./rafael-road-2.jpg") center/cover;
+      border:0;
+      box-shadow:0 24px 54px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.04);
+      position:relative;
+      isolation:isolate;
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      right:-110px;
+      top:-80px;
+      width:420px;
+      height:420px;
+      border-radius:50%;
+      background:radial-gradient(circle,#65a48666 0%,#65a48600 70%);
+      z-index:0;
+      pointer-events:none;
+    }
+    .hero-c{padding:42px 28px;position:relative;z-index:1}
+    .hero-layout{
+      display:grid;
+      grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);
+      gap:18px;
+      align-items:stretch;
+    }
+    .hero-left{display:grid;align-content:start}
+    .hero-right{
+      display:grid;
+      gap:12px;
+      align-content:end;
+      justify-items:stretch;
+    }
+    .hero-side-card{
+      border:0;
+      background:linear-gradient(160deg,rgba(16,51,45,.66),rgba(16,42,38,.52));
+      border-radius:20px;
+      padding:14px 14px;
+      box-shadow:0 8px 18px rgba(0,0,0,.2), inset 0 0 0 1px rgba(255,255,255,.06);
+      backdrop-filter:blur(6px);
+      -webkit-backdrop-filter:blur(6px);
+      transition:background .25s ease, box-shadow .25s ease, transform .25s ease;
+    }
+    .hero-side-card:hover{
+      background:linear-gradient(160deg,rgba(16,51,45,.72),rgba(16,42,38,.58));
+      box-shadow:0 10px 22px rgba(0,0,0,.24), inset 0 0 0 1px rgba(255,255,255,.08);
+      transform:translateY(-1px);
+    }
+    .hero-side-kicker{
+      font:700 .68rem/1.2 Inter;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      color:#9ec5b7;
+      margin-bottom:6px;
+    }
+    .hero-side-title{
+      margin:0;
+      font:800 1.12rem/1.2 "Playfair Display",serif;
+      color:#effbf6;
+    }
+    .hero-side-text{
+      margin:.45rem 0 0;
+      color:#b0cbbe;
+      font:500 .83rem/1.45 Inter;
+    }
+    .hero-route-mini{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin-top:8px;
+      color:#d7f0e4;
+      font:700 .8rem/1 Inter;
+    }
+    .hero-route-dot{
+      width:9px;
+      height:9px;
+      border-radius:999px;
+      background:#72d39a;
+      box-shadow:0 0 0 5px rgba(114,211,154,.2);
+      flex:none;
+    }
+    .chip{display:inline-block;background:#12382faa;border:0;border-radius:999px;padding:.34rem .8rem;font:700 .74rem/1 Inter;text-transform:uppercase;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+    h1{font:900 clamp(2.35rem,6.6vw,4.85rem)/.98 "Playfair Display",serif;margin:.75rem 0 .9rem;letter-spacing:-.02em}
+    .hero p{margin:0;max-width:640px;color:#d9ece4;font:500 1.05rem/1.55 Inter}
     .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-    .btn{border:0;border-radius:999px;padding:.74rem 1rem;font:700 .9rem/1 Inter;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
-    .btn-p{background:var(--accent);color:#fff}
-    .btn-g{background:#fff2;border:1px solid #fff8;color:#fff}
-    section{margin-top:14px}
-    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+    .intro-section{
+      margin:18px 0 0;
+      border-radius:0;
+      padding:28px 22px;
+      background:
+        linear-gradient(180deg,rgba(7,18,20,.44),rgba(7,18,20,.66)),
+        url("./site-intro.jpg") center/cover no-repeat;
+      box-shadow:none;
+    }
+    .intro-grid{
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      gap:18px;
+      align-items:start;
+    }
+    .intro-copy{
+      padding-top:280px;
+    }
+    .intro-copy h3{
+      margin:.15rem 0 .7rem;
+      font:700 clamp(.96rem,1.65vw,1.26rem)/1.14 Inter,sans-serif;
+      letter-spacing:.01em;
+      color:rgba(250,255,253,.97);
+    }
+    .intro-copy p{
+      margin:0 0 .95rem;
+      color:rgba(243,251,247,.93);
+      font:500 .88rem/1.58 Inter;
+      max-width:920px;
+      text-shadow:0 1px 2px rgba(0,0,0,.22);
+    }
+    .intro-quote{
+      margin-top:.3rem;
+      border-left:2px solid rgba(102,169,139,.65);
+      padding-left:10px;
+      color:rgba(247,252,250,.96);
+      font:700 .9rem/1.5 Inter;
+    }
+    .intro-cta{
+      margin-top:10px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .intro-gallery-title{
+      margin:16px 0 8px;
+      font:700 clamp(.95rem,1.4vw,1.1rem)/1.2 Inter,sans-serif;
+      color:rgba(250,255,253,.96);
+      letter-spacing:.01em;
+    }
+    .intro-gallery{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:10px;
+      margin-top:6px;
+    }
+    .intro-gallery-item{
+      border-radius:12px;
+      overflow:hidden;
+      background:rgba(9,22,25,.42);
+      box-shadow:0 8px 18px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .intro-gallery-item img{
+      width:100%;
+      height:140px;
+      object-fit:cover;
+      display:block;
+    }
+    .btn{border:0;border-radius:999px;padding:.78rem 1.15rem;font:700 .88rem/1 Inter;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+    .btn-p{background:var(--accent);color:#fff;box-shadow:0 10px 24px rgba(255,135,82,.32)}
+    .btn-g{background:#12342dbd;border:1px solid #6ca58a4d;color:#ebf8f2}
+    section{margin-top:16px}
+    .card{
+      background:linear-gradient(180deg,#0f201ff2,#0c1a1afa);
+      border:0;
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:0 12px 28px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.035)
+    }
+    #planner.card{
+      background:
+        linear-gradient(160deg,rgba(8,22,24,.9),rgba(8,22,24,.82)),
+        url("./site-intro.jpg") center/cover no-repeat;
+    }
+    #my-routes.card{
+      background:
+        linear-gradient(160deg,rgba(8,22,24,.9),rgba(8,22,24,.82)),
+        url("./bg-minhas-rotas.jpg") center/cover no-repeat;
+    }
+    #destinos.card{
+      background:
+        linear-gradient(160deg,rgba(8,22,24,.9),rgba(8,22,24,.82)),
+        url("./bg-destinos.jpg") center/cover no-repeat;
+    }
     .head h2{margin:.25rem 0;font:800 clamp(1.4rem,3vw,2rem)/1.1 "Playfair Display",serif}
     .head p{margin:0;color:var(--muted)}
-    .badge{display:inline-block;background:#e8f0ed;color:var(--pine);border-radius:999px;padding:.25rem .68rem;font:700 .74rem/1 Inter;text-transform:uppercase}
+    .badge{display:inline-block;background:#11332f;color:#b7e5d5;border-radius:999px;padding:.28rem .7rem;font:700 .72rem/1 Inter;text-transform:uppercase;letter-spacing:.02em}
     .planner{display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
-    .route-focus-toggle{display:none;border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.55rem .84rem;font:700 .78rem/1 Inter;cursor:pointer;margin-top:8px}
+    .route-focus-toggle{display:none;border:0;background:#102521;color:#e5f5ee;border-radius:999px;padding:.55rem .84rem;font:700 .78rem/1 Inter;cursor:pointer;margin-top:8px;box-shadow:inset 0 0 0 1px rgba(121,177,155,.35)}
     .field{position:relative;margin-bottom:8px}
-    label{display:block;font:700 .74rem/1 Inter;color:#445;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
-    input,select{width:100%;border:1px solid #ccd4dc;border-radius:12px;padding:.68rem .72rem;font:500 .95rem/1 Inter}
-    .list{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #ccd4dc;border-radius:12px;max-height:220px;overflow:auto;z-index:20}
-    .item{padding:.55rem .65rem;border-bottom:1px solid #edf1f4;display:flex;justify-content:space-between;gap:8px;cursor:pointer}
+    label{display:block;font:700 .74rem/1 Inter;color:#a7c2b9;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
+    input,select{
+      width:100%;
+      border:0;
+      background:#0d221f;
+      border-radius:13px;
+      padding:.73rem .78rem;
+      font:500 .95rem/1 Inter;
+      color:#e7edf7;
+      box-shadow:inset 0 0 0 1px rgba(121,177,155,.32), inset 0 1px 0 rgba(255,255,255,.05)
+    }
+    input:focus{
+      outline:none;
+      border-color:#4f8b77;
+      box-shadow:0 0 0 3px rgba(79,139,119,.22)
+    }
+    select:focus{
+      outline:none;
+      border-color:#4f8b77;
+      box-shadow:none;
+    }
+    select{
+      -webkit-appearance:none;
+      appearance:none;
+    }
+    select option{
+      background:#0d221f;
+      color:#cfe6dc;
+    }
+    select option:checked{
+      background:#0d221f;
+      color:#f1fbf7;
+    }
+    select option:hover{
+      background:#0d221f;
+      color:#f1fbf7;
+    }
+    .list{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#102521;border:0;border-radius:12px;max-height:220px;overflow:auto;z-index:20;box-shadow:0 12px 28px rgba(0,0,0,.38), inset 0 0 0 1px rgba(121,177,155,.28)}
+    .item{padding:.55rem .65rem;border-bottom:1px solid #27483f;display:flex;justify-content:space-between;gap:8px;cursor:pointer}
     .item:last-child{border-bottom:0}
-    .item:hover{background:#f6f8fa}
-    .help{font:.74rem/1.3 Inter;color:#6f7c8a}
-    .warn{color:#96481d;font-weight:700}
+    .item:hover{background:#17362f}
+    .help{font:.74rem/1.3 Inter;color:#93b2a8}
+    .warn{color:#ffb38d;font-weight:700}
     .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
     .stat{
-      background:#f6f8fb;
-      border:1px solid #e4ebf0;
-      border-radius:14px;
-      padding:12px 14px;
+      background:linear-gradient(180deg,#122825,#0f211f);
+      border:0;
+      border-radius:18px;
+      padding:14px 15px;
       font:600 1.05rem/1.2 Inter;
-      color:#10243f;
+      color:#d8ece5;
     }
     .stat b{
       display:block;
       margin-top:6px;
       font:800 2rem/1.05 Inter;
       letter-spacing:-0.02em;
-      color:#0b2344;
+      color:#f2fbf7;
     }
     .days{display:grid;gap:8px}
-    .day{
-      border:1px solid #dbe5ee;
-      border-radius:14px;
-      padding:14px;
-      background:#fbfdff;
-    }
+    .day{border:0;border-radius:16px;padding:14px;background:linear-gradient(180deg,#122825,#10211f);box-shadow:inset 0 0 0 1px rgba(121,177,155,.26)}
     .day .tiny{
       font:500 0.98rem/1.42 Inter;
-      color:#5f6f83;
+      color:#9fbaaf;
     }
     .day > .tiny:first-child{
       font:800 1.16rem/1.2 Inter;
-      color:#1a324c;
+      color:#d6f0e5;
       margin-bottom:4px;
     }
     .day b{
       display:block;
       font:800 1.56rem/1.15 Inter;
-      color:#16283f;
+      color:#f3fcf8;
       margin-bottom:4px;
       letter-spacing:-0.01em;
     }
-    #map{height:540px;border-radius:14px;border:1px solid var(--border)}
+    #map{height:540px;border-radius:14px;border:0;box-shadow:inset 0 0 0 1px rgba(121,177,155,.28)}
     .toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
     .toolbar-col{display:grid;gap:8px}
-    .pill{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.4rem .7rem;font:700 .74rem/1 Inter;cursor:pointer}
-    .pill.active{background:var(--pine);color:#fff;border-color:var(--pine)}
-    .community-hint{font:.78rem/1.35 Inter;color:#5e6f82}
+    .pill{border:0;background:#122826;border-radius:999px;padding:.42rem .74rem;font:700 .74rem/1 Inter;cursor:pointer;color:#c7e2d7;box-shadow:0 4px 12px rgba(0,0,0,.22), inset 0 0 0 1px rgba(121,177,155,.26)}
+    .pill.active{background:#1c6f60;color:#fff;border-color:#2c8a79}
+    .community-hint{font:.78rem/1.35 Inter;color:#9abeb2}
     .community-modal{
       position:fixed;
       inset:0;
@@ -150,28 +458,37 @@
       width:min(620px,calc(100% - 12px));
       max-height:min(86vh,760px);
       overflow:auto;
-      background:#fff;
-      border:1px solid #d8e1ea;
+      background:#102521;
+      border:1px solid #2f564a;
       border-radius:16px;
       padding:14px;
       box-shadow:0 24px 50px rgba(2,12,27,.28);
       position:relative;
       z-index:3001;
     }
-    .community-panel h3{margin:0 0 8px;font:800 1.28rem/1.15 "Playfair Display",serif;color:#12314a}
+    .community-panel h3{margin:0 0 8px;font:800 1.28rem/1.15 "Playfair Display",serif;color:#e9f7f1}
     .community-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .community-grid .full{grid-column:1 / -1}
-    .community-note{font:.78rem/1.35 Inter;color:#617287}
+    .community-note{font:.78rem/1.35 Inter;color:#9cbeb2}
     .community-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px}
     @media (max-width:800px){.community-grid{grid-template-columns:1fr}}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
-    .place{border:1px solid #e2e8ee;border-radius:12px;overflow:hidden;background:#fff}
+    .place{border:0;border-radius:12px;overflow:hidden;background:#102521;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
     .place img{width:100%;height:120px;object-fit:cover;display:block}
     .place .c{padding:9px}
     .place h4{margin:4px 0}
+    .place .tiny a,
+    .place .tiny a:visited{
+      color:#edf8f3;
+      text-decoration:underline;
+      text-underline-offset:2px;
+    }
+    .place .tiny a:hover{
+      color:#ffffff;
+    }
     .place-actions{display:flex;gap:8px;margin-top:8px}
-    .link-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.42rem .72rem;font:700 .72rem/1 Inter;color:var(--text)}
-    .link-btn:hover{background:#f6f8fa}
+    .link-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;background:#102521;border-radius:999px;padding:.42rem .72rem;font:700 .72rem/1 Inter;color:#dcf1e8;box-shadow:inset 0 0 0 1px rgba(121,177,155,.32)}
+    .link-btn:hover{background:#17362f}
     .local-detail{display:grid;gap:12px}
     .local-hero{position:relative;min-height:260px;border-radius:16px;overflow:hidden;display:flex;align-items:end;padding:18px;color:#fff}
     .local-hero::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.18),rgba(0,0,0,.66))}
@@ -180,35 +497,53 @@
     .local-meta{display:flex;gap:6px;flex-wrap:wrap}
     .local-chip{background:#ffffff2c;border:1px solid #ffffff85;border-radius:999px;padding:.3rem .62rem;font:700 .73rem/1 Inter}
     .local-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .local-block{background:#fff;border:1px solid var(--border);border-radius:14px;padding:12px}
+    .local-block{background:#102521;border:0;border-radius:14px;padding:12px;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
     .local-block h3{margin:0 0 8px;font:800 1.12rem/1.2 "Playfair Display",serif}
     .stages{display:grid;grid-template-columns:280px 1fr;gap:9px}
-    .stbtn{width:100%;text-align:left;border:1px solid #d8e0e8;border-radius:12px;background:#fff;padding:9px;cursor:pointer}
-    .stbtn.active{background:#e8f0ed;border-color:#bdd0c9}
+    .stbtn{width:100%;text-align:left;border:0;border-radius:12px;background:#102521;padding:9px;cursor:pointer;color:#ddf1e8;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
+    .stbtn.active{background:#17362f;border-color:#4c8b74}
     .saved-routes{display:grid;gap:8px}
-    .saved-route-item{border:1px solid #e4ebf0;border-radius:12px;padding:10px;background:#fff}
+    .saved-route-item{border:0;border-radius:12px;padding:10px;background:#102321;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
     .saved-route-title{margin:0 0 5px;font:800 .98rem/1.2 Inter}
-    .saved-route-meta{font:.76rem/1.35 Inter;color:#617083}
+    .saved-route-meta{font:.76rem/1.35 Inter;color:#9ab8af}
     .saved-route-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .saved-route-actions button{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.42rem .72rem;font:700 .74rem/1 Inter;cursor:pointer}
-    .saved-route-actions button:hover{background:#f6f8fa}
+    .saved-route-actions button{border:0;background:#102321;color:#e5f6ef;border-radius:999px;padding:.42rem .72rem;font:700 .74rem/1 Inter;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(121,177,155,.3)}
+    .saved-route-actions button:hover{background:#15332f}
     .saved-route-item.clickable{cursor:pointer}
-    .saved-route-item.clickable:hover{border-color:#c9d6e2;background:#fbfdff}
-    .saved-route-actions .danger{color:#a51b1b}
-    .collab-title-link{color:#1a3048;text-decoration:none}
+    .saved-route-item.clickable:hover{border-color:#4f8a75;background:#14332d}
+    .saved-route-actions .danger{color:#d84c4c}
+    .collab-title-link{color:#dff3ea;text-decoration:none}
     .collab-title-link:hover{text-decoration:underline}
-    .collab-detail-card{border:1px solid #d9e4ee;border-radius:14px;background:#fff;padding:14px}
+    .collab-detail-card{border:0;border-radius:14px;background:#102521;padding:14px;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
     .collab-detail-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-    .collab-detail-title{margin:0;font:900 1.8rem/1.1 "Playfair Display",serif;color:#17314a}
-    .collab-detail-meta{font:.92rem/1.45 Inter;color:#5c6d80}
-    .collab-detail-photo{width:100%;max-width:520px;height:220px;object-fit:cover;border-radius:12px;border:1px solid #dce4ec;margin-top:10px}
-    .footer{margin:18px 0 25px;text-align:center;color:#6f7c8a;font:.78rem/1.2 Inter}
-    .route-focus-header{display:none;margin-bottom:10px;padding:12px;border:1px solid #dce5ec;border-radius:14px;background:linear-gradient(135deg,#f8fbfd,#f3f8fb)}
-    .route-focus-title{margin:0 0 6px;font:900 1.2rem/1.1 "Playfair Display",serif;color:#17354a}
-    .route-focus-meta{font:.8rem/1.35 Inter;color:#526377}
+    .collab-detail-title{margin:0;font:900 1.8rem/1.1 "Playfair Display",serif;color:#edfaf5}
+    .collab-detail-meta{font:.92rem/1.45 Inter;color:#9cbfb3}
+    .collab-detail-photo{width:100%;max-width:520px;height:220px;object-fit:cover;border-radius:12px;border:1px solid #3b6759;margin-top:10px}
+    #my-collabs a,
+    #my-collabs a:visited,
+    #collab-detail a,
+    #collab-detail a:visited,
+    #mapa a,
+    #mapa a:visited,
+    .leaflet-popup-content a,
+    .leaflet-popup-content a:visited{
+      color:#edf8f3;
+      text-decoration:underline;
+      text-underline-offset:2px;
+    }
+    #my-collabs a:hover,
+    #collab-detail a:hover,
+    #mapa a:hover,
+    .leaflet-popup-content a:hover{
+      color:#ffffff;
+    }
+    .footer{margin:18px 0 25px;text-align:center;color:#96b6ab;font:.78rem/1.2 Inter}
+    .route-focus-header{display:none;margin-bottom:10px;padding:12px;border:0;border-radius:14px;background:linear-gradient(135deg,#122926,#102220);box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
+    .route-focus-title{margin:0 0 6px;font:900 1.2rem/1.1 "Playfair Display",serif;color:#f2fcf8}
+    .route-focus-meta{font:.8rem/1.35 Inter;color:#9ebfb4}
     .route-focus-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-    .route-focus-actions button{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.46rem .76rem;font:700 .75rem/1 Inter;cursor:pointer}
-    .route-focus-actions button:hover{background:#f6f8fa}
+    .route-focus-actions button{border:0;background:#102521;color:#e8f7f1;border-radius:999px;padding:.46rem .76rem;font:700 .75rem/1 Inter;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(121,177,155,.3)}
+    .route-focus-actions button:hover{background:#17362f}
     body.route-focus #home,
     body.route-focus #destinos,
     body.route-focus #my-routes,
@@ -221,7 +556,17 @@
     body.route-focus #plannerFormCol{display:none}
     body.route-focus .route-focus-header{display:block}
     body.route-focus #planner{margin-top:10px}
-    @media (max-width:1000px){.planner,.stages,.grid,.local-grid{grid-template-columns:1fr}}
+    @media (max-width:1000px){
+      .planner,.stages,.grid,.local-grid,.hero-layout,.intro-grid{grid-template-columns:1fr}
+      .hero-right{align-content:start}
+      .intro-copy{padding-top:170px}
+      .intro-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .intro-gallery-item img{height:130px}
+    }
+    @media (max-width:640px){
+      .intro-gallery{grid-template-columns:1fr}
+      .intro-gallery-item img{height:180px}
+    }
     @media (max-width:700px){
       .nav{display:none}
       .stats{grid-template-columns:1fr}
@@ -239,7 +584,7 @@
       <div class="brand">By Rafael Hanson</div>
       <div class="top-right">
       <nav class="nav">
-        <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#my-routes">Minhas rotas</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
+        <a href="#home" class="active">Home</a><a href="#planner">Planejador Inteligente</a><a href="#my-routes">Minhas rotas</a><a href="#destinos">Destinos</a>
       </nav>
       <button id="quickMapBtn" class="quick-map-btn" type="button">Mapa colaborativo</button>
       <div class="account">
@@ -257,7 +602,8 @@
 
   <main class="wrap">
     <section id="home" class="hero">
-      <div class="hero-c">
+      <div class="hero-c hero-layout">
+        <div class="hero-left">
         <span class="chip">road trip premium planner</span>
         <h1>Planeje sua road trip dos sonhos até a Patagônia</h1>
         <p>Agora com origem e destino livres: digite qualquer cidade, escolha nas sugestões e gere rota real de carro.</p>
@@ -265,15 +611,66 @@
           <a class="btn btn-p" href="#planner">Começar a planejar</a>
           <a class="btn btn-g" href="#destinos">Ver destinos</a>
         </div>
+        </div>
+        <div class="hero-right">
+          <article class="hero-side-card">
+            <div class="hero-side-kicker">Roteiro personalizado</div>
+            <h3 class="hero-side-title">De qualquer origem até 5 destinos</h3>
+            <p class="hero-side-text">Calcule por quilometragem ou por horas de direção e receba a rota dividida por dias.</p>
+            <div class="hero-route-mini"><span class="hero-route-dot"></span> Planejamento real por estrada</div>
+          </article>
+          <article class="hero-side-card">
+            <div class="hero-side-kicker">Mapa colaborativo</div>
+            <h3 class="hero-side-title">Pontos enviados por viajantes</h3>
+            <p class="hero-side-text">Ative os filtros e visualize colaborações de apoio, campings, hotéis e informações úteis no caminho.</p>
+            <div class="hero-route-mini"><span class="hero-route-dot"></span> Comunidade ativa na rota</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="homeIntro" class="intro-section">
+      <div class="intro-grid">
+        <article class="intro-copy">
+          <span class="badge">boas-vindas</span>
+          <h3>Bem-vindo à sua próxima aventura</h3>
+          <p>Eu sou o Rafael Hanson.</p>
+          <p>Sempre fui apaixonado por viajar. Já fiz mochilão pela América do Sul, explorei a Europa… até que, com o tempo, descobri uma forma de viajar que mudou tudo pra mim: a estrada. Viajar de carro.</p>
+          <p>Sem pressa, com liberdade, escolhendo cada parada, cada paisagem, cada experiência. E se você chegou até aqui, provavelmente também sente essa vontade — de viver algo diferente, sair do comum e construir uma viagem que realmente tenha significado.</p>
+
+          <h3>Mais do que um roteiro, uma experiência</h3>
+          <p>Aqui, eu vou te ajudar a montar a sua rota do jeito certo, descobrir os melhores pontos de parada, evitar erros que só quem já viveu a estrada conhece e transformar a sua viagem em algo memorável de verdade.</p>
+
+          <h3>Uma comunidade de viajantes</h3>
+          <p>Você também pode contribuir: compartilhar lugares onde parou, experiências que viveu e pontos que marcaram a sua jornada — e assim ajudar outros viajantes a se inspirarem. Porque as melhores viagens não vêm de guias… vêm de pessoas reais.</p>
+
+          <h3>12 anos na estrada</h3>
+          <p>Já são mais de 12 anos viajando dessa forma, passando por mais de 12 países e colecionando experiências que, sem exagero, eu vou levar pra vida inteira. E agora, eu quero te ajudar a viver isso também.</p>
+
+          <p class="intro-quote">Bora planejar a sua próxima viagem? Se você quer sair do básico e viver uma aventura de verdade… você está no lugar certo.</p>
+          <div class="intro-cta">
+            <a class="btn btn-p" href="#planner">Começar agora</a>
+            <a class="btn btn-g" href="#my-collabs">Ver colaborações</a>
+          </div>
+          <h4 class="intro-gallery-title">Algumas das minhas aventuras por aí</h4>
+          <div class="intro-gallery">
+            <figure class="intro-gallery-item"><img src="./intro-adv-1.jpg" alt="Aventura 1" loading="lazy"></figure>
+            <figure class="intro-gallery-item"><img src="./intro-adv-2.jpg" alt="Aventura 2" loading="lazy"></figure>
+            <figure class="intro-gallery-item"><img src="./intro-adv-3.jpg" alt="Aventura 3" loading="lazy"></figure>
+            <figure class="intro-gallery-item"><img src="./intro-adv-4.jpg" alt="Aventura 4" loading="lazy"></figure>
+            <figure class="intro-gallery-item"><img src="./intro-adv-5.jpg" alt="Aventura 5" loading="lazy"></figure>
+            <figure class="intro-gallery-item"><img src="./intro-adv-6.jpg" alt="Aventura 6" loading="lazy"></figure>
+          </div>
+        </article>
       </div>
     </section>
 
     <section id="planner" class="card">
       <div class="head">
-        <span class="badge">planejador</span>
+        <span class="badge">planejador inteligente</span>
         <h2>Qualquer cidade para qualquer cidade</h2>
         <p>A busca sugere cidades ao digitar e a rota é calculada por estrada (driving), não linha reta.</p>
-        <button id="routeFocusBackBtn" class="route-focus-toggle">Voltar ao planejador</button>
+        <button id="routeFocusBackBtn" class="route-focus-toggle">Voltar às minhas rotas</button>
       </div>
       <div class="planner">
         <div id="plannerFormCol">
@@ -283,27 +680,28 @@
           <div class="field"><label>Destino 3 (opcional)</label><input id="dest3" autocomplete="off" placeholder="Digite o destino 3"><div id="dest3List" class="list" hidden></div></div>
           <div class="field"><label>Destino 4 (opcional)</label><input id="dest4" autocomplete="off" placeholder="Digite o destino 4"><div id="dest4List" class="list" hidden></div></div>
           <div class="field"><label>Destino 5 (opcional)</label><input id="dest5" autocomplete="off" placeholder="Digite o destino 5"><div id="dest5List" class="list" hidden></div></div>
-          <div class="field"><label>Tipo de viagem</label><select id="style"><option value="fast">Road trip rápida</option><option value="panoramic">Road trip panorâmica</option><option value="camping">Aventura com campings</option><option value="hotel">Viagem com hotéis/pousadas</option></select></div>
+          <div class="field"><label>Tipo de viagem</label><select id="style"><option value="camping">Aventura com campings</option><option value="hotel">Viagem com hotéis/pousadas</option></select></div>
           <div class="field"><label>Quantidade de dias</label><input id="daysInput" type="number" value="" min="2" max="35" placeholder="Opcional"></div>
           <div class="field">
             <label>Critério diário</label>
             <select id="dayLimitMode">
               <option value="km">Quilometragem máxima por dia</option>
-              <option value="hours">Horas máximas por dia</option>
+              <option value="hours" selected>Horas máximas por dia</option>
             </select>
           </div>
           <div class="field">
-            <label id="dayLimitLabel">Quilometragem máxima por dia</label>
-            <input id="dayLimitValue" type="number" value="650" min="1" step="1">
-            <div id="dayLimitHelp" class="help">Exemplo: 650 km por dia.</div>
+            <label id="dayLimitLabel">Horas máximas por dia</label>
+            <input id="dayLimitValue" type="number" value="" min="1" step="1" placeholder="Opcional">
+            <div id="dayLimitHelp" class="help">Exemplo: 8 horas por dia.</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-p" id="genBtn">Gerar roteiro</button>
           </div>
           <div id="planActions" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <button class="btn" id="viewRouteBtn" style="border:1px solid #ccd4dc;background:#fff">Ver rota</button>
-            <button class="btn" id="saveRouteBtn" style="border:1px solid #ccd4dc;background:#fff">Salvar em minhas rotas</button>
-            <button class="btn" id="printBtn" style="border:1px solid #ccd4dc;background:#fff">Baixar rota em PDF</button>
+            <button class="btn" id="viewRouteBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Ver rota</button>
+            <button class="btn" id="saveRouteBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Salvar em minhas rotas</button>
+            <button class="btn" id="clearPlannerBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Limpar dados</button>
+            <button class="btn" id="printBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Baixar rota em PDF</button>
           </div>
           <div id="warn" class="help warn" style="margin-top:7px"></div>
         </div>
@@ -353,7 +751,7 @@
         <h2>Detalhes da colaboração</h2>
         <p>Edite ou exclua o ponto diretamente desta tela.</p>
       </div>
-      <button id="backToCollabsBtn" class="btn" style="border:1px solid #ccd4dc;background:#fff;color:#182230;margin-bottom:10px">Voltar para minhas colaborações</button>
+      <button id="backToCollabsBtn" class="btn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee;margin-bottom:10px">Voltar para minhas colaborações</button>
       <div id="collabDetailBody"></div>
     </section>
 
@@ -362,6 +760,7 @@
       <div class="toolbar-col">
         <div id="catBar" class="toolbar"></div>
         <div class="toolbar">
+          <button id="mapBackToCollabsBtn" class="pill" style="display:none">Voltar para minhas colaborações</button>
           <button id="addCommunityPointBtn" class="pill">Adicionar ponto colaborativo</button>
           <button id="useGpsPointBtn" class="pill">Usar meu GPS</button>
           <span id="communityStatus" class="community-hint">Clique em “Adicionar ponto colaborativo” e depois toque no mapa para marcar o local.</span>
@@ -413,7 +812,7 @@
             </div>
           </div>
           <div class="community-actions">
-            <button type="button" class="btn" id="communityCancelBtn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Cancelar</button>
+            <button type="button" class="btn" id="communityCancelBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Cancelar</button>
             <button type="submit" class="btn btn-p" id="communitySaveBtn">Salvar ponto</button>
           </div>
         </form>
@@ -428,7 +827,7 @@
     <p class="footer">Arquivo único HTML/CSS/JS • usa busca de cidades e rota real de estrada</p>
     <section id="localDetail" class="card" hidden>
       <div class="local-detail">
-        <button id="backToPlaces" class="btn" style="width:max-content;border:1px solid #ccd4dc;background:#fff;color:#182230">Voltar para locais da viagem</button>
+        <button id="backToPlaces" class="btn" style="width:max-content;border:1px solid #3a6256;background:#102521;color:#e5f5ee">Voltar para locais da viagem</button>
         <div id="localDetailBody"></div>
       </div>
     </section>

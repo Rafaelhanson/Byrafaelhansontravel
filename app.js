@@ -71,6 +71,7 @@ const printBtn = document.getElementById("printBtn");
 const planActionsEl = document.getElementById("planActions");
 const viewRouteBtn = document.getElementById("viewRouteBtn");
 const saveRouteBtn = document.getElementById("saveRouteBtn");
+const clearPlannerBtn = document.getElementById("clearPlannerBtn");
 const routeFocusHeaderEl = document.getElementById("routeFocusHeader");
 const routeFocusTitleEl = document.getElementById("routeFocusTitle");
 const routeFocusMetaEl = document.getElementById("routeFocusMeta");
@@ -105,6 +106,7 @@ const collabDetailBodyEl = document.getElementById("collabDetailBody");
 const backToCollabsBtn = document.getElementById("backToCollabsBtn");
 const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
 const useGpsPointBtn = document.getElementById("useGpsPointBtn");
+const mapBackToCollabsBtn = document.getElementById("mapBackToCollabsBtn");
 const communityStatusEl = document.getElementById("communityStatus");
 const communityModalEl = document.getElementById("communityModal");
 const communityFormEl = document.getElementById("communityForm");
@@ -133,12 +135,16 @@ let currentPlanSnapshot = null;
 let routesStorageKeyCache = null;
 let communityLayer = null;
 let communityPoints = [];
+let showCommunityPoints = true;
 let isAddingCommunityPoint = false;
 let supabaseClient = null;
 let editingCommunityId = null;
 let editingCommunityPhotoUrl = null;
 let communityDraftMarker = null;
 let myCollaborationsCache = [];
+let routeOpenContext = "planner";
+let pendingOpenRouteContext = null;
+let mapBackTargetHash = null;
 
 const map = L.map("map").setView([-30, -58], 4);
 const mapTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
@@ -232,6 +238,46 @@ function setCollabDetailVisibility(show) {
   collabDetailSectionEl.hidden = !show;
 }
 
+function setSectionVisibility(sectionId) {
+  const sections = {
+    home: document.getElementById("home"),
+    planner: document.getElementById("planner"),
+    "my-routes": document.getElementById("my-routes"),
+    "my-collabs": document.getElementById("my-collabs"),
+    "collab-detail": document.getElementById("collab-detail"),
+    mapa: document.getElementById("mapa"),
+    destinos: document.getElementById("destinos")
+  };
+
+  Object.entries(sections).forEach(([key, element]) => {
+    if (!element) return;
+    element.hidden = key !== sectionId;
+  });
+  const homeIntroEl = document.getElementById("homeIntro");
+  if (homeIntroEl) {
+    homeIntroEl.hidden = sectionId !== "home";
+  }
+
+  const footerEl = document.querySelector(".footer");
+  if (footerEl) footerEl.hidden = false;
+}
+
+function updateActiveNav(hash) {
+  const normalized = hash || "#home";
+  document.querySelectorAll(".nav a").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    link.classList.toggle("active", href === normalized);
+  });
+  if (quickMapBtn) {
+    quickMapBtn.classList.toggle("active", normalized === "#mapa");
+  }
+  if (accountMenuBtn) {
+    const accountHashes = new Set(["#my-collabs"]);
+    const accountActive = accountHashes.has(normalized) || normalized.startsWith("#collab/");
+    accountMenuBtn.classList.toggle("active", accountActive);
+  }
+}
+
 function renderCollabDetail(item) {
   if (!collabDetailBodyEl) return;
   if (!item) {
@@ -281,9 +327,13 @@ function openCollabDetailById(collabId) {
   if (destinosSectionEl) destinosSectionEl.hidden = true;
 }
 
-function openCollaborativeMap() {
+function openCollaborativeMap(backTargetHash = null) {
   exitRouteFocusMode();
   revealMapSection();
+  mapBackTargetHash = backTargetHash;
+  if (mapBackToCollabsBtn) {
+    mapBackToCollabsBtn.style.display = mapBackTargetHash ? "inline-flex" : "none";
+  }
   handleSectionVisibilityByHash("#mapa");
   window.location.hash = "#mapa";
   setCommunityStatus("Use os botões para adicionar ponto colaborativo.");
@@ -295,15 +345,48 @@ function openCollaborativeMap() {
 
 function handleSectionVisibilityByHash(hash) {
   const normalized = hash || "#home";
-  const showDestinos = normalized === "#home" || normalized === "#destinos";
-  setDestinationsVisibility(showDestinos);
   if (normalized.startsWith("#collab/")) {
     exitRouteFocusMode();
     const collabId = decodeURIComponent(normalized.replace("#collab/", "").trim());
+    setSectionVisibility("collab-detail");
     openCollabDetailById(collabId);
+    updateActiveNav("#my-collabs");
     return;
   }
+  if (normalized === "#route") {
+    setSectionVisibility("planner");
+    setCollabDetailVisibility(false);
+    revealMapSection();
+    updateActiveNav(routeOpenContext === "saved" ? "#my-routes" : "#planner");
+    if (currentPlanSnapshot) {
+      enterRouteFocusMode();
+      updateRouteFocusHeader(currentPlanSnapshot);
+    }
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [24, 24] });
+    });
+    return;
+  }
+
+  const target = normalized.replace("#", "");
+  const allowedTargets = new Set(["home", "planner", "my-routes", "my-collabs", "mapa", "destinos", "route"]);
+  const sectionId = allowedTargets.has(target) ? target : "home";
+  if (sectionId === "mapa") revealMapSection();
+  if (sectionId === "planner" && normalized !== "#route") {
+    clearPlannerData();
+  } else {
+    exitRouteFocusMode();
+  }
+  setSectionVisibility(sectionId);
   setCollabDetailVisibility(false);
+  updateActiveNav(`#${sectionId}`);
+
+  if (sectionId === "mapa") {
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+    });
+  }
 }
 
 function enterRouteFocusMode() {
@@ -322,6 +405,57 @@ function exitRouteFocusMode() {
   document.body.classList.remove("route-focus");
   if (routeFocusBackBtn) routeFocusBackBtn.style.display = "";
   requestAnimationFrame(() => map.invalidateSize());
+}
+
+function clearRouteLayers() {
+  routeCoords = [];
+  if (routeLayer) {
+    map.removeLayer(routeLayer);
+    routeLayer = null;
+  }
+  routeMarkers.forEach((marker) => map.removeLayer(marker));
+  routeMarkers = [];
+  if (dayStopsLayer) {
+    map.removeLayer(dayStopsLayer);
+    dayStopsLayer = null;
+  }
+  if (borderCrossingsLayer) {
+    map.removeLayer(borderCrossingsLayer);
+    borderCrossingsLayer = null;
+  }
+  dynamicRoutePois = [];
+  drawPoiMarkers();
+}
+
+function clearPlannerData() {
+  selectedOrigin = null;
+  selectedDestinations.fill(null);
+  currentPlanSnapshot = null;
+  pendingOpenRouteContext = null;
+  routeOpenContext = "planner";
+  clearRouteLayers();
+  exitRouteFocusMode();
+  updateRouteFocusHeader(null);
+
+  originInput.value = "";
+  dest1Input.value = "";
+  dest2Input.value = "";
+  dest3Input.value = "";
+  dest4Input.value = "";
+  dest5Input.value = "";
+  daysInputEl.value = "";
+  dayLimitModeEl.value = "hours";
+  updateDayLimitUi();
+  dayLimitValueEl.value = "";
+
+  sumKmEl.textContent = "-";
+  sumTimeEl.textContent = "-";
+  sumDaysEl.textContent = "-";
+  daysOutEl.innerHTML = "";
+  warnEl.textContent = "";
+  localStorage.removeItem("lastPlan");
+  if (planActionsEl) planActionsEl.style.display = "none";
+  if (mapSectionEl) mapSectionEl.hidden = true;
 }
 
 function updateRouteFocusHeader(route) {
@@ -514,7 +648,6 @@ function updateDayLimitUi() {
     dayLimitValueEl.min = "1";
     dayLimitValueEl.max = "16";
     dayLimitValueEl.step = "0.5";
-    if (!dayLimitValueEl.value || Number(dayLimitValueEl.value) > 24) dayLimitValueEl.value = "8";
   } else {
     dayLimitLabelEl.textContent = "Quilometragem máxima por dia";
     dayLimitHelpEl.textContent = "Exemplo: 650 km por dia.";
@@ -522,7 +655,6 @@ function updateDayLimitUi() {
     dayLimitValueEl.min = "50";
     dayLimitValueEl.max = "1500";
     dayLimitValueEl.step = "50";
-    if (!dayLimitValueEl.value || Number(dayLimitValueEl.value) <= 24) dayLimitValueEl.value = "650";
   }
 }
 
@@ -676,6 +808,7 @@ async function geocodeIfNeeded(inputValue) {
 async function applySavedRoute(route) {
   if (!route || !route.origin) return;
   warnEl.textContent = "Carregando rota salva...";
+  routeOpenContext = "saved";
 
   originInput.value = route.origin || "";
   const destinations = Array.isArray(route.destinations) ? route.destinations : [];
@@ -703,6 +836,7 @@ async function applySavedRoute(route) {
     selectedDestinations[i] = value ? await geocodeIfNeeded(value) : null;
   }
 
+  pendingOpenRouteContext = "saved";
   await generatePlan();
   warnEl.textContent = "Rota carregada em Minhas rotas.";
 }
@@ -713,7 +847,7 @@ function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
       const borderHtml = day.borderCrossing
         ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
     })
     .join("");
 }
@@ -747,8 +881,32 @@ function applySavedSnapshotToUi(route) {
   currentPlanSnapshot = route;
   updateRouteFocusHeader(currentPlanSnapshot);
   if (planActionsEl) planActionsEl.style.display = "flex";
-  enterRouteFocusMode();
+  openRouteInFullView("saved");
   return true;
+}
+
+function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
+  return days
+    .map((day) => {
+      const borderHtml = day.borderCrossing
+        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
+        : "";
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+    })
+    .join("");
+}
+
+function openRouteInFullView(context = "planner") {
+  routeOpenContext = context;
+  setSectionVisibility("planner");
+  revealMapSection();
+  updateActiveNav(context === "saved" ? "#my-routes" : "#planner");
+  enterRouteFocusMode();
+  if (window.location.hash !== "#route") {
+    window.location.hash = "#route";
+  } else {
+    handleSectionVisibilityByHash("#route");
+  }
 }
 
 function haversineKm(a, b) {
@@ -1048,6 +1206,10 @@ function drawPoiMarkers() {
 function drawCommunityPoints() {
   if (communityLayer) map.removeLayer(communityLayer);
   communityLayer = L.layerGroup();
+
+  if (!showCommunityPoints) {
+    return;
+  }
 
   communityPoints.forEach((point) => {
     const color = COMMUNITY_CATEGORY_COLORS[point.category] || "#334155";
@@ -1370,7 +1532,7 @@ function setupCommunityUi() {
     if (!button) return;
 
     if (button.dataset.action === "open-map") {
-      openCollaborativeMap();
+      openCollaborativeMap("#my-collabs");
       const item = communityPoints.find((point) => point.id === collabId);
       if (item) {
         map.setView([Number(item.lat), Number(item.lon)], 11);
@@ -1545,6 +1707,7 @@ async function generatePlan() {
       })
       .join("");
 
+    daysOutEl.innerHTML = renderDaysHtml(days, styleEl.value, limitMode);
     currentPlanSnapshot = {
       id: String(Date.now()),
       createdAt: Date.now(),
@@ -1564,6 +1727,7 @@ async function generatePlan() {
       boundaryPoints,
       dynamicRoutePois: []
     };
+    currentPlanSnapshot.name = `${currentPlanSnapshot.origin} → ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`;
     updateRouteFocusHeader(currentPlanSnapshot);
     localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
@@ -1573,7 +1737,8 @@ async function generatePlan() {
     fetchRouteAmenities(routeCoords, stayStops).then((pois) => { dynamicRoutePois = pois; if (currentPlanSnapshot) { currentPlanSnapshot.dynamicRoutePois = pois; localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot)); } drawPoiMarkers(); }).catch(() => {});
     drawPoiMarkers();
     if (planActionsEl) planActionsEl.style.display = "flex";
-    enterRouteFocusMode();
+    openRouteInFullView(pendingOpenRouteContext || "planner");
+    pendingOpenRouteContext = null;
     if (false && !dynamicRoutePois.length) {
       warnEl.textContent = "Rota gerada. Não encontrei postos/hotéis/campings próximos neste momento.";
     }
@@ -1611,9 +1776,13 @@ async function saveCurrentRoute() {
 saveRouteBtn?.addEventListener("click", saveCurrentRoute);
 routeSaveBtn?.addEventListener("click", saveCurrentRoute);
 viewRouteBtn?.addEventListener("click", () => {
-  if (!mapSectionEl || mapSectionEl.hidden) return;
-  enterRouteFocusMode();
+  if (!currentPlanSnapshot) {
+    warnEl.textContent = "Gere uma rota antes de abrir a visualização.";
+    return;
+  }
+  openRouteInFullView("planner");
 });
+clearPlannerBtn?.addEventListener("click", clearPlannerData);
 printBtn?.addEventListener("click", () => exportRouteToPdf(currentPlanSnapshot));
 routePdfBtn?.addEventListener("click", () => exportRouteToPdf(currentPlanSnapshot));
 
@@ -1675,6 +1844,18 @@ Object.entries(CATEGORY_LABELS).forEach(([key, label]) => {
   catBar.appendChild(button);
 });
 
+if (catBar) {
+  const collabButton = document.createElement("button");
+  collabButton.className = `pill ${showCommunityPoints ? "active" : ""}`;
+  collabButton.textContent = "Colaborações";
+  collabButton.onclick = () => {
+    showCommunityPoints = !showCommunityPoints;
+    collabButton.classList.toggle("active", showCommunityPoints);
+    drawCommunityPoints();
+  };
+  catBar.appendChild(collabButton);
+}
+
 maxPoiDistance = 999;
 
 const stageBtns = document.getElementById("stageBtns");
@@ -1721,7 +1902,7 @@ const BOOK_MAIN_IDS = [
 
 const PHOTO_OVERRIDES = {
   "puerto-madryn": "./puerto-madryn-cover.jpg",
-  ushuaia: "./rafael-road-1.jpg",
+  ushuaia: "./ushuaia-cover.jpg",
   torres: "./torres-cover.jpg",
   calafate:
     "https://commons.wikimedia.org/wiki/Special:FilePath/Perito_Moreno_Glacier_(30600924084).jpg",
@@ -1894,6 +2075,10 @@ if (topicsGridEl) {
 }
 
 routeFocusBackBtn?.addEventListener("click", () => {
+  if (window.location.hash === "#route") {
+    window.history.back();
+    return;
+  }
   exitRouteFocusMode();
   const plannerSection = document.getElementById("planner");
   if (plannerSection) plannerSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1918,8 +2103,25 @@ window.addEventListener("hashchange", () => {
 
 bindAccountMenu();
 quickMapBtn?.addEventListener("click", openCollaborativeMap);
+mapBackToCollabsBtn?.addEventListener("click", () => {
+  const target = mapBackTargetHash || "#my-collabs";
+  mapBackTargetHash = null;
+  if (mapBackToCollabsBtn) mapBackToCollabsBtn.style.display = "none";
+  window.location.hash = target;
+});
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
 drawPoiMarkers();
 setupCommunityUi();
+
+function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
+  return days
+    .map((day) => {
+      const borderHtml = day.borderCrossing
+        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
+        : "";
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+    })
+    .join("");
+}
