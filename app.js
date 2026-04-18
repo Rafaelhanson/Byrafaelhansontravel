@@ -67,8 +67,19 @@ const dest4List = document.getElementById("dest4List");
 const dest5List = document.getElementById("dest5List");
 const warnEl = document.getElementById("warn");
 const genBtn = document.getElementById("genBtn");
-const favBtn = document.getElementById("favBtn");
 const printBtn = document.getElementById("printBtn");
+const planActionsEl = document.getElementById("planActions");
+const viewRouteBtn = document.getElementById("viewRouteBtn");
+const saveRouteBtn = document.getElementById("saveRouteBtn");
+const routeFocusHeaderEl = document.getElementById("routeFocusHeader");
+const routeFocusTitleEl = document.getElementById("routeFocusTitle");
+const routeFocusMetaEl = document.getElementById("routeFocusMeta");
+const routeShareBtn = document.getElementById("routeShareBtn");
+const routeSaveBtn = document.getElementById("routeSaveBtn");
+const routePdfBtn = document.getElementById("routePdfBtn");
+const routeFocusBackBtn = document.getElementById("routeFocusBackBtn");
+const accountMenuBtn = document.getElementById("accountMenuBtn");
+const accountMenuPanel = document.getElementById("accountMenuPanel");
 const styleEl = document.getElementById("style");
 const daysInputEl = document.getElementById("daysInput");
 const dayLimitModeEl = document.getElementById("dayLimitMode");
@@ -86,6 +97,19 @@ const localDetailBodyEl = document.getElementById("localDetailBody");
 const backToPlacesBtn = document.getElementById("backToPlaces");
 const savedRoutesListEl = document.getElementById("savedRoutesList");
 const savedRoutesEmptyEl = document.getElementById("savedRoutesEmpty");
+const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
+const useGpsPointBtn = document.getElementById("useGpsPointBtn");
+const communityStatusEl = document.getElementById("communityStatus");
+const communityModalEl = document.getElementById("communityModal");
+const communityFormEl = document.getElementById("communityForm");
+const communityNameEl = document.getElementById("communityName");
+const communityCategoryEl = document.getElementById("communityCategory");
+const communityDescriptionEl = document.getElementById("communityDescription");
+const communityLatEl = document.getElementById("communityLat");
+const communityLonEl = document.getElementById("communityLon");
+const communityPhotoEl = document.getElementById("communityPhoto");
+const communityCancelBtn = document.getElementById("communityCancelBtn");
+const communitySaveBtn = document.getElementById("communitySaveBtn");
 
 let selectedOrigin = null;
 const selectedDestinations = [null, null, null, null, null];
@@ -100,11 +124,51 @@ let selectedCats = new Set(["fuel_station", "hotel", "camping"]);
 let maxPoiDistance = 999;
 let currentPlanSnapshot = null;
 let routesStorageKeyCache = null;
+let communityLayer = null;
+let communityPoints = [];
+let isAddingCommunityPoint = false;
+let supabaseClient = null;
 
 const map = L.map("map").setView([-30, -58], 4);
 const mapTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
   attribution: "Tiles &copy; Esri"
 }).addTo(map);
+
+const COMMUNITY_CATEGORY_LABELS = {
+  camping: "Camping",
+  hotel: "Hotel/Pousada",
+  fuel_station: "Posto",
+  viewpoint: "Mirante",
+  alert: "Alerta",
+  support: "Apoio"
+};
+
+const COMMUNITY_CATEGORY_COLORS = {
+  camping: "#166534",
+  hotel: "#7c3aed",
+  fuel_station: "#1d4ed8",
+  viewpoint: "#ea580c",
+  alert: "#b42318",
+  support: "#0f766e"
+};
+
+function initSupabaseClient() {
+  const cfg = window.APP_AUTH_CONFIG || {};
+  if (!cfg.supabaseUrl || !cfg.supabaseAnonKey || !window.supabase?.createClient) return null;
+  if (supabaseClient) return supabaseClient;
+  supabaseClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+  return supabaseClient;
+}
+
+async function getCurrentUserEmail() {
+  try {
+    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
+      const session = await window.AppAuth.getSession();
+      return session?.user?.email || "usuario@sem-email";
+    }
+  } catch (_error) {}
+  return "usuario@sem-email";
+}
 
 function revealMapSection() {
   if (!mapSectionEl) return;
@@ -125,6 +189,96 @@ function debounce(fn, ms) {
     clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
+}
+
+function bindAccountMenu() {
+  if (!accountMenuBtn || !accountMenuPanel) return;
+  accountMenuBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    accountMenuPanel.hidden = !accountMenuPanel.hidden;
+  });
+  document.addEventListener("click", (event) => {
+    if (!accountMenuPanel.hidden && !event.target.closest(".account")) {
+      accountMenuPanel.hidden = true;
+    }
+  });
+  accountMenuPanel.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      exitRouteFocusMode();
+      if (destinosSectionEl) destinosSectionEl.hidden = true;
+      accountMenuPanel.hidden = true;
+    });
+  });
+}
+
+function setDestinationsVisibility(show) {
+  if (!destinosSectionEl) return;
+  destinosSectionEl.hidden = !show;
+}
+
+function handleSectionVisibilityByHash(hash) {
+  const normalized = hash || "#home";
+  const showDestinos = normalized === "#home" || normalized === "#destinos";
+  setDestinationsVisibility(showDestinos);
+}
+
+function enterRouteFocusMode() {
+  document.body.classList.add("route-focus");
+  setDestinationsVisibility(false);
+  if (routeFocusBackBtn) routeFocusBackBtn.style.display = "inline-flex";
+  const plannerSection = document.getElementById("planner");
+  if (plannerSection) plannerSection.scrollIntoView({ behavior: "auto", block: "start" });
+  requestAnimationFrame(() => {
+    map.invalidateSize();
+    if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [24, 24] });
+  });
+}
+
+function exitRouteFocusMode() {
+  document.body.classList.remove("route-focus");
+  if (routeFocusBackBtn) routeFocusBackBtn.style.display = "";
+  requestAnimationFrame(() => map.invalidateSize());
+}
+
+function updateRouteFocusHeader(route) {
+  if (!routeFocusHeaderEl || !routeFocusTitleEl || !routeFocusMetaEl) return;
+  if (!route) {
+    routeFocusHeaderEl.style.display = "none";
+    routeFocusTitleEl.textContent = "Rota da viagem";
+    routeFocusMetaEl.textContent = "";
+    return;
+  }
+  const destinationText = (route.destinations || []).join(" - ");
+  const createdAtDate = new Date(route.createdAt || Date.now());
+  const createdDate = createdAtDate.toLocaleDateString("pt-BR");
+  const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  routeFocusTitleEl.textContent = `${route.origin || "-"} -> ${destinationText || "-"}`;
+  routeFocusMetaEl.textContent = `${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias • criada em ${createdDate} às ${createdTime}`;
+  routeFocusHeaderEl.style.display = "block";
+}
+
+async function shareRoute(route) {
+  if (!route) {
+    warnEl.textContent = "Gere ou abra uma rota antes de compartilhar.";
+    return;
+  }
+  const shareText = `${route.name || "Rota"}\n${route.origin || "-"} -> ${(route.destinations || []).join(" - ") || "-"}\n${route.totalKm || 0} km • ${route.totalHours || 0} h • ${route.totalDays || 0} dias`;
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: route.name || "Rota da viagem",
+        text: shareText,
+        url: window.location.href
+      });
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareText);
+      warnEl.textContent = "Resumo da rota copiado para a área de transferência.";
+      return;
+    }
+  } catch (_error) {}
+  warnEl.textContent = "Não foi possível compartilhar agora.";
 }
 
 async function getRoutesStorageKey() {
@@ -187,7 +341,82 @@ function renderSavedRoutes(routes = []) {
 async function refreshSavedRoutes() {
   const routes = await readSavedRoutes();
   routes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  renderSavedRoutes(routes);
+  renderSavedRoutesV2(routes);
+}
+
+function renderSavedRoutesV2(routes = []) {
+  if (!savedRoutesListEl || !savedRoutesEmptyEl) return;
+  if (!routes.length) {
+    savedRoutesListEl.innerHTML = "";
+    savedRoutesEmptyEl.hidden = false;
+    return;
+  }
+  savedRoutesEmptyEl.hidden = true;
+  savedRoutesListEl.innerHTML = routes
+    .map((route) => {
+      const createdAtDate = new Date(route.createdAt || Date.now());
+      const createdDate = createdAtDate.toLocaleDateString("pt-BR");
+      const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const destinationText = Array.isArray(route.destinations) && route.destinations.length ? route.destinations.join(" - ") : "-";
+      return `<article class="saved-route-item clickable" data-route-id="${route.id}">
+        <h4 class="saved-route-title">${route.name || "Rota salva"}</h4>
+        <div class="saved-route-meta">${route.origin || "-"} -> ${destinationText}</div>
+        <div class="saved-route-meta">${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias</div>
+        <div class="saved-route-meta">Criada em: ${createdDate} as ${createdTime}</div>
+        <div class="saved-route-actions">
+          <button type="button" data-action="open">Ver rota</button>
+          <button type="button" data-action="pdf">PDF</button>
+          <button type="button" data-action="delete" class="danger" title="Excluir rota">&#128465;</button>
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
+function buildRoutePdfHtml(route) {
+  const createdAtDate = new Date(route.createdAt || Date.now());
+  const createdDate = createdAtDate.toLocaleDateString("pt-BR");
+  const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const daysRows = (route.days || [])
+    .map((day) => `<tr><td>${day.day}</td><td>${day.from} -> ${day.to}</td><td>${day.km} km</td><td>${day.hours} h</td></tr>`)
+    .join("");
+
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${route.name || "Rota"} - PDF</title><style>
+    body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
+    h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
+    .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
+    th{background:#eef3f8}
+  </style></head><body>
+    <h1>${route.name || "Rota da viagem"}</h1>
+    <p class="muted">By Rafael Hanson</p>
+    <div class="meta">
+      <div><b>Origem:</b> ${route.origin || "-"}</div>
+      <div><b>Destinos:</b> ${(route.destinations || []).join(" - ") || "-"}</div>
+      <div><b>Resumo:</b> ${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias</div>
+      <div><b>Criada em:</b> ${createdDate} as ${createdTime}</div>
+    </div>
+    <h2 style="font-size:18px;margin:14px 0 8px">Trechos por dia</h2>
+    <table><thead><tr><th>Dia</th><th>Trecho</th><th>Distancia</th><th>Tempo</th></tr></thead><tbody>${daysRows}</tbody></table>
+  </body></html>`;
+}
+
+function exportRouteToPdf(route) {
+  if (!route) {
+    warnEl.textContent = "Gere ou abra uma rota antes de exportar.";
+    return;
+  }
+  const printWindow = window.open("", "_blank", "width=980,height=760");
+  if (!printWindow) {
+    warnEl.textContent = "Nao foi possivel abrir a janela de impressao. Verifique o bloqueador de pop-up.";
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(buildRoutePdfHtml(route));
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 300);
 }
 
 function updateDayLimitUi() {
@@ -364,14 +593,12 @@ async function applySavedRoute(route) {
   warnEl.textContent = "Carregando rota salva...";
 
   originInput.value = route.origin || "";
-  selectedOrigin = route.origin ? await geocodeIfNeeded(route.origin) : null;
-
   const destinations = Array.isArray(route.destinations) ? route.destinations : [];
   const destinationInputs = [dest1Input, dest2Input, dest3Input, dest4Input, dest5Input];
   for (let i = 0; i < destinationInputs.length; i += 1) {
     const value = destinations[i] || "";
     destinationInputs[i].value = value;
-    selectedDestinations[i] = value ? await geocodeIfNeeded(value) : null;
+    selectedDestinations[i] = null;
   }
 
   if (styleEl && route.style) styleEl.value = route.style;
@@ -380,8 +607,63 @@ async function applySavedRoute(route) {
   updateDayLimitUi();
   if (dayLimitValueEl && route.dayLimitValue) dayLimitValueEl.value = route.dayLimitValue;
 
+  if (applySavedSnapshotToUi(route)) {
+    warnEl.textContent = "Rota carregada em Minhas rotas.";
+    return;
+  }
+
+  selectedOrigin = route.origin ? await geocodeIfNeeded(route.origin) : null;
+  for (let i = 0; i < destinationInputs.length; i += 1) {
+    const value = destinationInputs[i].value.trim();
+    selectedDestinations[i] = value ? await geocodeIfNeeded(value) : null;
+  }
+
   await generatePlan();
   warnEl.textContent = "Rota carregada em Minhas rotas.";
+}
+
+function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
+  return days
+    .map((day) => {
+      const borderHtml = day.borderCrossing
+        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
+        : "";
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
+    })
+    .join("");
+}
+
+function applySavedSnapshotToUi(route) {
+  if (!Array.isArray(route.routeCoords) || route.routeCoords.length < 2) return false;
+  if (!Array.isArray(route.days) || !route.days.length) return false;
+
+  routeCoords = route.routeCoords;
+  const firstCoord = routeCoords[0];
+  const lastCoord = routeCoords[routeCoords.length - 1];
+  const fallbackWaypoints = [
+    { name: route.origin || "Origem", lat: firstCoord[0], lon: firstCoord[1] },
+    { name: (route.destinations || [])[route.destinations.length - 1] || "Destino", lat: lastCoord[0], lon: lastCoord[1] }
+  ];
+  const waypoints = Array.isArray(route.waypoints) && route.waypoints.length ? route.waypoints : fallbackWaypoints;
+
+  revealMapSection();
+  drawRoute(waypoints);
+  sumKmEl.textContent = `${Math.round(route.totalKm || 0)} km`;
+  sumTimeEl.textContent = `${Number(route.totalHours || 0).toFixed(1)} h`;
+  sumDaysEl.textContent = String(route.totalDays || route.days.length || 0);
+  if (daysInputEl) daysInputEl.value = String(route.totalDays || route.days.length || "");
+  daysOutEl.innerHTML = renderDaysHtml(route.days, route.style || styleEl?.value || "fast", route.dayLimitMode || dayLimitModeEl?.value || "km");
+
+  const savedBoundaryPoints = Array.isArray(route.boundaryPoints) ? route.boundaryPoints : [];
+  if (savedBoundaryPoints.length >= 2) drawDayStops(savedBoundaryPoints, route.days);
+
+  dynamicRoutePois = Array.isArray(route.dynamicRoutePois) ? route.dynamicRoutePois : [];
+  drawPoiMarkers();
+  currentPlanSnapshot = route;
+  updateRouteFocusHeader(currentPlanSnapshot);
+  if (planActionsEl) planActionsEl.style.display = "flex";
+  enterRouteFocusMode();
+  return true;
 }
 
 function haversineKm(a, b) {
@@ -678,8 +960,191 @@ function drawPoiMarkers() {
   poisLayer.addTo(map);
 }
 
+function drawCommunityPoints() {
+  if (communityLayer) map.removeLayer(communityLayer);
+  communityLayer = L.layerGroup();
+
+  communityPoints.forEach((point) => {
+    const color = COMMUNITY_CATEGORY_COLORS[point.category] || "#334155";
+    const label = COMMUNITY_CATEGORY_LABELS[point.category] || "Ponto";
+    const icon = L.divIcon({
+      className: "community-point-icon",
+      html: `<div style="width:28px;height:28px;border-radius:8px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:800 11px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.26)">C</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
+    });
+
+    const photoHtml = point.photo_url
+      ? `<div style="margin:8px 0"><img src="${point.photo_url}" alt="foto do ponto" style="width:220px;max-width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid #dce4ec"></div>`
+      : "";
+    const mapsUrl = `https://www.google.com/maps?q=${point.lat},${point.lon}`;
+
+    L.marker([point.lat, point.lon], { icon })
+      .bindPopup(
+        `<b>${point.name}</b><br><small>${label} • ${point.user_email || "colaborador"}</small>${photoHtml}<p style="margin:6px 0 8px">${point.description || "Sem descrição."}</p><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a>`
+      )
+      .addTo(communityLayer);
+  });
+
+  communityLayer.addTo(map);
+}
+
+function setCommunityStatus(text) {
+  if (communityStatusEl) communityStatusEl.textContent = text;
+}
+
+function openCommunityModal(lat, lon) {
+  if (!communityModalEl) return;
+  if (typeof lat === "number" && typeof lon === "number") {
+    communityLatEl.value = lat.toFixed(6);
+    communityLonEl.value = lon.toFixed(6);
+  }
+  communityModalEl.hidden = false;
+}
+
+function closeCommunityModal() {
+  if (!communityModalEl) return;
+  communityModalEl.hidden = true;
+  communityFormEl?.reset();
+}
+
+async function loadCommunityPoints() {
+  const sb = initSupabaseClient();
+  if (!sb) {
+    setCommunityStatus("Supabase não configurado para pontos colaborativos.");
+    return;
+  }
+  const { data, error } = await sb
+    .from("community_points")
+    .select("id,name,category,description,lat,lon,photo_url,user_email,created_at")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    setCommunityStatus("Não foi possível carregar pontos colaborativos (verifique a tabela no Supabase).");
+    return;
+  }
+
+  communityPoints = (data || []).filter((p) => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lon)));
+  drawCommunityPoints();
+  setCommunityStatus(`Pontos colaborativos carregados: ${communityPoints.length}.`);
+}
+
+async function uploadCommunityPhoto(file) {
+  if (!file) return null;
+  const sb = initSupabaseClient();
+  if (!sb) return null;
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const path = `community/${safeName}`;
+  const { error } = await sb.storage.from("community-points").upload(path, file, {
+    cacheControl: "3600",
+    upsert: false
+  });
+  if (error) throw error;
+  const { data } = sb.storage.from("community-points").getPublicUrl(path);
+  return data?.publicUrl || null;
+}
+
+async function saveCommunityPoint(event) {
+  event.preventDefault();
+  const sb = initSupabaseClient();
+  if (!sb) {
+    setCommunityStatus("Supabase não configurado para salvar pontos.");
+    return;
+  }
+  const lat = Number(communityLatEl?.value);
+  const lon = Number(communityLonEl?.value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    setCommunityStatus("Defina latitude e longitude válidas.");
+    return;
+  }
+  if (!communityNameEl?.value.trim()) {
+    setCommunityStatus("Informe o nome do ponto.");
+    return;
+  }
+
+  try {
+    communitySaveBtn.disabled = true;
+    communitySaveBtn.textContent = "Salvando...";
+    const photoFile = communityPhotoEl?.files?.[0] || null;
+    const photoUrl = await uploadCommunityPhoto(photoFile);
+    const userEmail = await getCurrentUserEmail();
+
+    const payload = {
+      name: communityNameEl.value.trim(),
+      category: communityCategoryEl.value,
+      description: communityDescriptionEl.value.trim(),
+      lat,
+      lon,
+      photo_url: photoUrl,
+      user_email: userEmail
+    };
+
+    const { error } = await sb.from("community_points").insert(payload);
+    if (error) throw error;
+
+    closeCommunityModal();
+    await loadCommunityPoints();
+    setCommunityStatus("Ponto colaborativo salvo com sucesso.");
+  } catch (_error) {
+    setCommunityStatus("Não foi possível salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
+  } finally {
+    communitySaveBtn.disabled = false;
+    communitySaveBtn.textContent = "Salvar ponto";
+  }
+}
+
+function setupCommunityUi() {
+  initSupabaseClient();
+  loadCommunityPoints();
+
+  addCommunityPointBtn?.addEventListener("click", () => {
+    isAddingCommunityPoint = true;
+    setCommunityStatus("Modo ativo: clique no mapa para marcar o ponto colaborativo.");
+  });
+
+  useGpsPointBtn?.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      setCommunityStatus("Seu navegador não liberou GPS.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        map.setView([lat, lon], 12);
+        openCommunityModal(lat, lon);
+        setCommunityStatus("GPS obtido. Complete os dados e salve o ponto.");
+      },
+      () => setCommunityStatus("Não consegui ler seu GPS agora. Tente novamente ou clique no mapa."),
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  });
+
+  map.on("click", (event) => {
+    if (!isAddingCommunityPoint) return;
+    isAddingCommunityPoint = false;
+    const { lat, lng } = event.latlng;
+    openCommunityModal(lat, lng);
+    setCommunityStatus("Coordenada marcada. Agora preencha e salve.");
+  });
+
+  communityCancelBtn?.addEventListener("click", () => {
+    closeCommunityModal();
+    setCommunityStatus("Cadastro cancelado.");
+  });
+
+  communityModalEl?.addEventListener("click", (event) => {
+    if (event.target === communityModalEl) closeCommunityModal();
+  });
+
+  communityFormEl?.addEventListener("submit", saveCommunityPoint);
+}
+
 async function generatePlan() {
   warnEl.textContent = "";
+  if (planActionsEl) planActionsEl.style.display = "none";
   if (!selectedOrigin) selectedOrigin = await geocodeIfNeeded(originInput.value);
 
   const destinationInputs = [dest1Input, dest2Input, dest3Input, dest4Input, dest5Input];
@@ -833,24 +1298,35 @@ async function generatePlan() {
       totalKm: Math.round(totalKm),
       totalHours: Number(totalHours.toFixed(1)),
       totalDays: days.length,
-      days
+      days,
+      waypoints: waypoints.map((point) => ({ name: point.name, lat: point.lat, lon: point.lon })),
+      routeCoords,
+      boundaryPoints,
+      dynamicRoutePois: []
     };
+    updateRouteFocusHeader(currentPlanSnapshot);
     localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
     syncMapViewport();
     const stayStops = boundaryPoints.slice(1).map((point) => point.coord);
-    dynamicRoutePois = await fetchRouteAmenities(routeCoords, stayStops);
+    dynamicRoutePois = [];
+    fetchRouteAmenities(routeCoords, stayStops).then((pois) => { dynamicRoutePois = pois; if (currentPlanSnapshot) { currentPlanSnapshot.dynamicRoutePois = pois; localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot)); } drawPoiMarkers(); }).catch(() => {});
     drawPoiMarkers();
-    if (!dynamicRoutePois.length) {
+    if (planActionsEl) planActionsEl.style.display = "flex";
+    enterRouteFocusMode();
+    if (false && !dynamicRoutePois.length) {
       warnEl.textContent = "Rota gerada. Não encontrei postos/hotéis/campings próximos neste momento.";
     }
   } catch (error) {
+    if (planActionsEl) planActionsEl.style.display = "none";
+    exitRouteFocusMode();
     warnEl.textContent = "Não foi possível calcular a rota agora. Tente selecionar a cidade na sugestão ou tente novamente em alguns segundos.";
   }
 }
 
 genBtn.addEventListener("click", generatePlan);
-favBtn.addEventListener("click", async () => {
+
+async function saveCurrentRoute() {
   if (!currentPlanSnapshot) {
     warnEl.textContent = "Gere um roteiro antes de salvar.";
     return;
@@ -870,22 +1346,39 @@ favBtn.addEventListener("click", async () => {
   await writeSavedRoutes(routes.slice(0, 40));
   await refreshSavedRoutes();
   warnEl.textContent = "Rota salva em Minhas rotas.";
+}
+
+saveRouteBtn?.addEventListener("click", saveCurrentRoute);
+routeSaveBtn?.addEventListener("click", saveCurrentRoute);
+viewRouteBtn?.addEventListener("click", () => {
+  if (!mapSectionEl || mapSectionEl.hidden) return;
+  enterRouteFocusMode();
 });
-printBtn.addEventListener("click", () => window.print());
+printBtn?.addEventListener("click", () => exportRouteToPdf(currentPlanSnapshot));
+routePdfBtn?.addEventListener("click", () => exportRouteToPdf(currentPlanSnapshot));
 
 if (savedRoutesListEl) {
   savedRoutesListEl.addEventListener("click", async (event) => {
-    const button = event.target.closest("button[data-action]");
-    if (!button) return;
-    const container = button.closest("[data-route-id]");
+    const container = event.target.closest("[data-route-id]");
     if (!container) return;
     const routeId = container.dataset.routeId;
     const routes = await readSavedRoutes();
     const route = routes.find((item) => item.id === routeId);
     if (!route) return;
+    const button = event.target.closest("button[data-action]");
+
+    if (!button) {
+      await applySavedRoute(route);
+      return;
+    }
 
     if (button.dataset.action === "open") {
       await applySavedRoute(route);
+      return;
+    }
+
+    if (button.dataset.action === "pdf") {
+      exportRouteToPdf(route);
       return;
     }
 
@@ -1140,5 +1633,24 @@ if (topicsGridEl) {
   ).join("");
 }
 
+routeFocusBackBtn?.addEventListener("click", () => {
+  exitRouteFocusMode();
+  const plannerSection = document.getElementById("planner");
+  if (plannerSection) plannerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+routeShareBtn?.addEventListener("click", () => shareRoute(currentPlanSnapshot));
+
+document.querySelectorAll(".nav a").forEach((link) => {
+  link.addEventListener("click", () => {
+    const href = link.getAttribute("href") || "";
+    if (href !== "#mapa") exitRouteFocusMode();
+    handleSectionVisibilityByHash(href);
+  });
+});
+
+bindAccountMenu();
+updateRouteFocusHeader(null);
+handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
 drawPoiMarkers();
+setupCommunityUi();

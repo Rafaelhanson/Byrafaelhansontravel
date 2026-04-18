@@ -17,12 +17,41 @@
   <style>
     :root{--bg:#f3f4ef;--surface:#fff;--text:#182230;--muted:#5f6b7a;--pine:#23433c;--accent:#e86c39;--border:#dfe4e8;--radius:18px}
     *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,sans-serif;color:var(--text);background:var(--bg)}
-    .wrap{width:min(1180px,calc(100% - 24px));margin:0 auto}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,sans-serif;
+      color:var(--text);
+      background:var(--bg);
+      position:relative;
+      min-height:100vh;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:url("./assets/rafael-road-2.jpg") center center/cover no-repeat;
+      z-index:-2;
+      pointer-events:none;
+    }
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:rgba(14,23,33,.58);
+      z-index:-1;
+      pointer-events:none;
+    }
+    .wrap{width:min(1180px,calc(100% - 24px));margin:0 auto;position:relative;z-index:1}
     .top{position:sticky;top:0;z-index:30;background:#f3f4efea;border-bottom:1px solid var(--border);backdrop-filter:blur(8px)}
     .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 0;gap:8px}
     .top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-    .user-chip{display:inline-flex;align-items:center;border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.5rem .75rem;font:700 .75rem/1 Inter;color:#2f3e52}
+    .account{position:relative}
+    .account-btn{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.58rem .86rem;font:700 .78rem/1 Inter;color:#182230;cursor:pointer}
+    .account-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:220px;background:#fff;border:1px solid #d8e0e8;border-radius:12px;box-shadow:0 12px 32px rgba(15,23,42,.14);padding:8px;display:grid;gap:4px;z-index:40}
+    .account-menu[hidden]{display:none}
+    .account-email{padding:8px 10px;font:700 .74rem/1.3 Inter;color:#5f6b7a;border-bottom:1px solid #eef2f6;word-break:break-all}
+    .account-link,.account-logout{display:block;width:100%;text-align:left;border:0;background:#fff;border-radius:8px;padding:.58rem .65rem;font:700 .8rem/1 Inter;color:#1f2b37;cursor:pointer;text-decoration:none}
+    .account-link:hover,.account-logout:hover{background:#f6f8fb}
     .brand{font:900 clamp(1.5rem,2.8vw,2.2rem)/1 "Playfair Display",serif;color:var(--pine)}
     .nav{display:flex;gap:6px;flex-wrap:wrap}
     .nav a{text-decoration:none;color:var(--muted);font:700 .84rem/1 Inter;padding:.52rem .8rem;border-radius:999px}
@@ -42,6 +71,7 @@
     .head p{margin:0;color:var(--muted)}
     .badge{display:inline-block;background:#e8f0ed;color:var(--pine);border-radius:999px;padding:.25rem .68rem;font:700 .74rem/1 Inter;text-transform:uppercase}
     .planner{display:grid;grid-template-columns:1fr 1.2fr;gap:10px}
+    .route-focus-toggle{display:none;border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.55rem .84rem;font:700 .78rem/1 Inter;cursor:pointer;margin-top:8px}
     .field{position:relative;margin-bottom:8px}
     label{display:block;font:700 .74rem/1 Inter;color:#445;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px}
     input,select{width:100%;border:1px solid #ccd4dc;border-radius:12px;padding:.68rem .72rem;font:500 .95rem/1 Inter}
@@ -51,15 +81,77 @@
     .item:hover{background:#f6f8fa}
     .help{font:.74rem/1.3 Inter;color:#6f7c8a}
     .warn{color:#96481d;font-weight:700}
-    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
-    .stat{background:#f6f8fb;border:1px solid #e4ebf0;border-radius:11px;padding:8px;font:.84rem/1.2 Inter}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+    .stat{
+      background:#f6f8fb;
+      border:1px solid #e4ebf0;
+      border-radius:14px;
+      padding:12px 14px;
+      font:600 1.05rem/1.2 Inter;
+      color:#10243f;
+    }
+    .stat b{
+      display:block;
+      margin-top:6px;
+      font:800 2rem/1.05 Inter;
+      letter-spacing:-0.02em;
+      color:#0b2344;
+    }
     .days{display:grid;gap:8px}
-    .day{border:1px solid #e4ebf0;border-radius:11px;padding:8px}
-    .tiny{font:.74rem/1.35 Inter;color:#6f7c8a}
+    .day{
+      border:1px solid #dbe5ee;
+      border-radius:14px;
+      padding:14px;
+      background:#fbfdff;
+    }
+    .day .tiny{
+      font:500 0.98rem/1.42 Inter;
+      color:#5f6f83;
+    }
+    .day > .tiny:first-child{
+      font:800 1.16rem/1.2 Inter;
+      color:#1a324c;
+      margin-bottom:4px;
+    }
+    .day b{
+      display:block;
+      font:800 1.56rem/1.15 Inter;
+      color:#16283f;
+      margin-bottom:4px;
+      letter-spacing:-0.01em;
+    }
     #map{height:540px;border-radius:14px;border:1px solid var(--border)}
     .toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+    .toolbar-col{display:grid;gap:8px}
     .pill{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.4rem .7rem;font:700 .74rem/1 Inter;cursor:pointer}
     .pill.active{background:var(--pine);color:#fff;border-color:var(--pine)}
+    .community-hint{font:.78rem/1.35 Inter;color:#5e6f82}
+    .community-modal{
+      position:fixed;
+      inset:0;
+      z-index:60;
+      display:grid;
+      place-items:center;
+      padding:16px;
+      background:rgba(7,12,20,.56);
+    }
+    .community-modal[hidden]{display:none}
+    .community-panel{
+      width:min(620px,calc(100% - 12px));
+      max-height:min(86vh,760px);
+      overflow:auto;
+      background:#fff;
+      border:1px solid #d8e1ea;
+      border-radius:16px;
+      padding:14px;
+      box-shadow:0 24px 50px rgba(2,12,27,.28);
+    }
+    .community-panel h3{margin:0 0 8px;font:800 1.28rem/1.15 "Playfair Display",serif;color:#12314a}
+    .community-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .community-grid .full{grid-column:1 / -1}
+    .community-note{font:.78rem/1.35 Inter;color:#617287}
+    .community-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px}
+    @media (max-width:800px){.community-grid{grid-template-columns:1fr}}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
     .place{border:1px solid #e2e8ee;border-radius:12px;overflow:hidden;background:#fff}
     .place img{width:100%;height:120px;object-fit:cover;display:block}
@@ -88,7 +180,26 @@
     .saved-route-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     .saved-route-actions button{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.42rem .72rem;font:700 .74rem/1 Inter;cursor:pointer}
     .saved-route-actions button:hover{background:#f6f8fa}
+    .saved-route-item.clickable{cursor:pointer}
+    .saved-route-item.clickable:hover{border-color:#c9d6e2;background:#fbfdff}
+    .saved-route-actions .danger{color:#a51b1b}
     .footer{margin:18px 0 25px;text-align:center;color:#6f7c8a;font:.78rem/1.2 Inter}
+    .route-focus-header{display:none;margin-bottom:10px;padding:12px;border:1px solid #dce5ec;border-radius:14px;background:linear-gradient(135deg,#f8fbfd,#f3f8fb)}
+    .route-focus-title{margin:0 0 6px;font:900 1.2rem/1.1 "Playfair Display",serif;color:#17354a}
+    .route-focus-meta{font:.8rem/1.35 Inter;color:#526377}
+    .route-focus-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .route-focus-actions button{border:1px solid #ccd4dc;background:#fff;border-radius:999px;padding:.46rem .76rem;font:700 .75rem/1 Inter;cursor:pointer}
+    .route-focus-actions button:hover{background:#f6f8fa}
+    body.route-focus #home,
+    body.route-focus #destinos,
+    body.route-focus #my-routes,
+    body.route-focus .footer{display:none}
+    body.route-focus #planner .head p{display:none}
+    body.route-focus #planner .route-focus-toggle{display:inline-flex}
+    body.route-focus #planner .planner{grid-template-columns:1fr}
+    body.route-focus #plannerFormCol{display:none}
+    body.route-focus .route-focus-header{display:block}
+    body.route-focus #planner{margin-top:10px}
     @media (max-width:1000px){.planner,.stages,.grid,.local-grid{grid-template-columns:1fr}}
     @media (max-width:700px){.nav{display:none}.stats{grid-template-columns:1fr}}
   </style>
@@ -101,8 +212,14 @@
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador</a><a href="#my-routes">Minhas rotas</a><a href="#mapa">Mapa</a><a href="#destinos">Destinos</a>
       </nav>
-      <span id="userEmailChip" class="user-chip" hidden></span>
-      <button id="logoutBtn" class="btn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Sair</button>
+      <div class="account">
+        <button id="accountMenuBtn" class="account-btn">Minha Conta</button>
+        <div id="accountMenuPanel" class="account-menu" hidden>
+          <div id="userEmailChip" class="account-email" hidden></div>
+          <a class="account-link" href="#my-routes">Minhas rotas</a>
+          <button id="logoutBtn" class="account-logout">Sair da conta</button>
+        </div>
+      </div>
       </div>
     </div>
   </header>
@@ -125,9 +242,10 @@
         <span class="badge">planejador</span>
         <h2>Qualquer cidade para qualquer cidade</h2>
         <p>A busca sugere cidades ao digitar e a rota é calculada por estrada (driving), não linha reta.</p>
+        <button id="routeFocusBackBtn" class="route-focus-toggle">Voltar ao planejador</button>
       </div>
       <div class="planner">
-        <div>
+        <div id="plannerFormCol">
           <div class="field"><label>Origem</label><input id="origin" autocomplete="off" placeholder="Digite qualquer cidade"><div id="originList" class="list" hidden></div></div>
           <div class="field"><label>Destino 1</label><input id="dest1" autocomplete="off" placeholder="Digite o destino 1"><div id="dest1List" class="list" hidden></div></div>
           <div class="field"><label>Destino 2 (opcional)</label><input id="dest2" autocomplete="off" placeholder="Digite o destino 2"><div id="dest2List" class="list" hidden></div></div>
@@ -135,7 +253,7 @@
           <div class="field"><label>Destino 4 (opcional)</label><input id="dest4" autocomplete="off" placeholder="Digite o destino 4"><div id="dest4List" class="list" hidden></div></div>
           <div class="field"><label>Destino 5 (opcional)</label><input id="dest5" autocomplete="off" placeholder="Digite o destino 5"><div id="dest5List" class="list" hidden></div></div>
           <div class="field"><label>Tipo de viagem</label><select id="style"><option value="fast">Road trip rápida</option><option value="panoramic">Road trip panorâmica</option><option value="camping">Aventura com campings</option><option value="hotel">Viagem com hotéis/pousadas</option></select></div>
-          <div class="field"><label>Quantidade de dias</label><input id="daysInput" type="number" value="12" min="2" max="35"></div>
+          <div class="field"><label>Quantidade de dias</label><input id="daysInput" type="number" value="" min="2" max="35" placeholder="Opcional"></div>
           <div class="field">
             <label>Critério diário</label>
             <select id="dayLimitMode">
@@ -150,12 +268,24 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-p" id="genBtn">Gerar roteiro</button>
-            <button class="btn" id="favBtn" style="border:1px solid #ccd4dc;background:#fff">Salvar rota</button>
-            <button class="btn" id="printBtn" style="border:1px solid #ccd4dc;background:#fff">Imprimir</button>
+          </div>
+          <div id="planActions" style="display:none;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <button class="btn" id="viewRouteBtn" style="border:1px solid #ccd4dc;background:#fff">Ver rota</button>
+            <button class="btn" id="saveRouteBtn" style="border:1px solid #ccd4dc;background:#fff">Salvar em minhas rotas</button>
+            <button class="btn" id="printBtn" style="border:1px solid #ccd4dc;background:#fff">Baixar rota em PDF</button>
           </div>
           <div id="warn" class="help warn" style="margin-top:7px"></div>
         </div>
-        <div>
+        <div id="plannerOutputCol">
+          <div id="routeFocusHeader" class="route-focus-header">
+            <h3 id="routeFocusTitle" class="route-focus-title">Rota da viagem</h3>
+            <div id="routeFocusMeta" class="route-focus-meta"></div>
+            <div class="route-focus-actions">
+              <button id="routeSaveBtn" type="button">Salvar em minhas rotas</button>
+              <button id="routePdfBtn" type="button">Baixar rota em PDF</button>
+              <button id="routeShareBtn" type="button">Compartilhar</button>
+            </div>
+          </div>
           <div class="stats">
             <div class="stat">Distância total<br><b id="sumKm">-</b></div>
             <div class="stat">Tempo estimado<br><b id="sumTime">-</b></div>
@@ -178,9 +308,63 @@
 
     <section id="mapa" class="card" hidden>
       <div class="head"><span class="badge">mapa interativo</span><h2>Rota real de carro + filtros</h2></div>
-      <div id="catBar" class="toolbar"></div>
+      <div class="toolbar-col">
+        <div id="catBar" class="toolbar"></div>
+        <div class="toolbar">
+          <button id="addCommunityPointBtn" class="pill">Adicionar ponto colaborativo</button>
+          <button id="useGpsPointBtn" class="pill">Usar meu GPS</button>
+          <span id="communityStatus" class="community-hint">Clique em “Adicionar ponto colaborativo” e depois toque no mapa para marcar o local.</span>
+        </div>
+      </div>
       <div id="map"></div>
     </section>
+
+    <div id="communityModal" class="community-modal" hidden>
+      <div class="community-panel">
+        <h3>Novo ponto colaborativo</h3>
+        <p class="community-note">Preencha os dados do local para ajudar outros viajantes.</p>
+        <form id="communityForm">
+          <div class="community-grid">
+            <div>
+              <label for="communityName">Nome do ponto</label>
+              <input id="communityName" required placeholder="Ex.: Camping com vista do lago">
+            </div>
+            <div>
+              <label for="communityCategory">Categoria</label>
+              <select id="communityCategory" required>
+                <option value="camping">Camping</option>
+                <option value="hotel">Hotel/Pousada</option>
+                <option value="fuel_station">Posto de combustível</option>
+                <option value="viewpoint">Mirante/Paisagem</option>
+                <option value="alert">Alerta de estrada</option>
+                <option value="support">Ponto de apoio</option>
+              </select>
+            </div>
+            <div class="full">
+              <label for="communityDescription">Descrição</label>
+              <input id="communityDescription" placeholder="Estrutura, segurança, preço, água, banheiro, dicas...">
+            </div>
+            <div>
+              <label for="communityLat">Latitude</label>
+              <input id="communityLat" type="number" step="any" required>
+            </div>
+            <div>
+              <label for="communityLon">Longitude</label>
+              <input id="communityLon" type="number" step="any" required>
+            </div>
+            <div class="full">
+              <label for="communityPhoto">Foto (opcional)</label>
+              <input id="communityPhoto" type="file" accept="image/*">
+              <div class="community-note">A foto será enviada para o banco compartilhado.</div>
+            </div>
+          </div>
+          <div class="community-actions">
+            <button type="button" class="btn" id="communityCancelBtn" style="border:1px solid #ccd4dc;background:#fff;color:#182230">Cancelar</button>
+            <button type="submit" class="btn btn-p" id="communitySaveBtn">Salvar ponto</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <section id="destinos" class="card">
       <div class="head"><span class="badge">destinos</span><h2>Locais da viagem</h2></div>

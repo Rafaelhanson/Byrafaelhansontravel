@@ -93,15 +93,31 @@
   async function bindUserEmailChip(elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
+    const applyEmail = (email) => {
+      if (!email) {
+        el.hidden = true;
+        el.textContent = "";
+        return;
+      }
+      el.textContent = email;
+      el.hidden = false;
+    };
+
     const session = await getSession();
-    const email = session?.user?.email;
-    if (!email) {
-      el.hidden = true;
-      el.textContent = "";
-      return;
+    let email = session?.user?.email;
+
+    if (!email && client) {
+      const { data } = await client.auth.getUser();
+      email = data?.user?.email || "";
     }
-    el.textContent = email;
-    el.hidden = false;
+
+    applyEmail(email);
+
+    if (client) {
+      client.auth.onAuthStateChange((_event, currentSession) => {
+        applyEmail(currentSession?.user?.email || "");
+      });
+    }
   }
 
   windowObj.AppAuth = {

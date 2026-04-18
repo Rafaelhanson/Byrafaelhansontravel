@@ -9,8 +9,31 @@
   <style>
     :root{--bg:#f3f4ef;--card:#fff;--text:#182230;--muted:#5f6b7a;--pine:#23433c;--accent:#e86c39;--border:#dfe4e8}
     *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}
-    .wrap{width:min(480px,calc(100% - 24px));margin:6vh auto}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      position:relative;
+      min-height:100vh;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:url("./assets/rafael-road-2.jpg") center center/cover no-repeat;
+      z-index:-2;
+      pointer-events:none;
+    }
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:rgba(14,23,33,.58);
+      z-index:-1;
+      pointer-events:none;
+    }
+    .wrap{width:min(480px,calc(100% - 24px));margin:6vh auto;position:relative;z-index:1}
     .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px}
     h1{margin:.2rem 0 .3rem;font-size:1.8rem}
     p{color:var(--muted);margin:.2rem 0 1rem}

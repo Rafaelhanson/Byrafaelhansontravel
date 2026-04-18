@@ -16,8 +16,31 @@
   <style>
     :root { --bg:#f3f4ef; --card:#fff; --text:#182230; --muted:#5f6b7a; --pine:#23433c; --border:#dfe4e8; --ink:#23354d; }
     * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,sans-serif; }
-    .wrap { width:min(1040px,calc(100% - 24px)); margin:0 auto; padding:14px 0 26px; }
+    body {
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:Inter,system-ui,sans-serif;
+      position:relative;
+      min-height:100vh;
+    }
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:url("./assets/rafael-road-2.jpg") center center/cover no-repeat;
+      z-index:-2;
+      pointer-events:none;
+    }
+    body::after{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:rgba(14,23,33,.58);
+      z-index:-1;
+      pointer-events:none;
+    }
+    .wrap { width:min(1040px,calc(100% - 24px)); margin:0 auto; padding:14px 0 26px; position:relative; z-index:1; }
     .top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
     .brand { font:900 clamp(1.25rem,2.8vw,2rem)/1 "Playfair Display",serif; color:var(--pine); }
     .btn { border:1px solid #ccd4dc; background:#fff; color:var(--text); border-radius:999px; padding:.6rem .85rem; font:700 .82rem/1 Inter; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
