@@ -568,7 +568,33 @@
       .intro-gallery-item img{height:180px}
     }
     @media (max-width:700px){
-      .nav{display:none}
+      .topbar{
+        padding:10px 0;
+      }
+      .top-right{
+        width:100%;
+        justify-content:flex-start;
+        gap:10px;
+        overflow-x:auto;
+        padding:0 8px;
+        scrollbar-width:none;
+      }
+      .top-right::-webkit-scrollbar{display:none}
+      .nav{
+        display:flex;
+        flex-wrap:nowrap;
+        gap:0;
+        min-width:max-content;
+      }
+      .nav a{
+        margin-right:14px;
+        white-space:nowrap;
+        font-size:.78rem;
+      }
+      .quick-map-btn,.account-btn{
+        white-space:nowrap;
+        font-size:.78rem;
+      }
       .stats{grid-template-columns:1fr}
       #map{
         height:430px;
