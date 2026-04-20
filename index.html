@@ -303,6 +303,7 @@
         linear-gradient(180deg,rgba(7,18,20,.44),rgba(7,18,20,.66)),
         url("./site-intro.jpg") center/cover no-repeat;
       box-shadow:none;
+      overflow:hidden;
     }
     .intro-grid{
       display:grid;
@@ -609,6 +610,16 @@
       .mobile-menu-btn{display:inline-flex}
       .top-right{display:none}
       .stats{grid-template-columns:1fr}
+      .intro-section{
+        /* Ajuste dedicado ao mobile para evitar efeito de imagem "esticada" */
+        background:
+          linear-gradient(180deg,rgba(7,18,20,.34),rgba(7,18,20,.58)),
+          url("./site-intro.jpg") center 12% / cover no-repeat;
+        padding:22px 14px;
+      }
+      .intro-copy{
+        padding-top:118px;
+      }
       #map{
         height:430px;
         width:calc(100% - 18px);
