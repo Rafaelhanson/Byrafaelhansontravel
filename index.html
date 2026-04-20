@@ -65,6 +65,40 @@
     }
     .topbar{display:flex;justify-content:center;align-items:center;padding:14px 0;gap:10px}
     .top-right{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;width:100%}
+    .mobile-menu-btn{
+      display:none;
+      border:1px solid rgba(134,209,165,.45);
+      background:rgba(16,37,33,.72);
+      color:#ecf8f3;
+      border-radius:10px;
+      padding:.38rem .58rem;
+      font:700 1rem/1 Inter;
+      cursor:pointer;
+    }
+    .mobile-menu-panel{
+      position:fixed;
+      top:64px;
+      right:12px;
+      left:12px;
+      z-index:60;
+      background:linear-gradient(180deg,#102521f7,#0d201cf2);
+      border:1px solid #2f554b;
+      border-radius:14px;
+      box-shadow:0 16px 36px rgba(0,0,0,.42);
+      padding:10px;
+      display:grid;
+      gap:4px;
+    }
+    .mobile-menu-panel[hidden]{display:none}
+    .mobile-menu-link{
+      text-decoration:none;
+      color:#e6f5ee;
+      font:700 .9rem/1.25 Inter;
+      padding:.62rem .7rem;
+      border-radius:10px;
+      background:transparent;
+    }
+    .mobile-menu-link:hover{background:#17362f}
     .quick-map-btn{
       border:0;
       background:transparent;
@@ -569,32 +603,11 @@
     }
     @media (max-width:700px){
       .topbar{
+        justify-content:space-between;
         padding:10px 0;
       }
-      .top-right{
-        width:100%;
-        justify-content:flex-start;
-        gap:10px;
-        overflow-x:auto;
-        padding:0 8px;
-        scrollbar-width:none;
-      }
-      .top-right::-webkit-scrollbar{display:none}
-      .nav{
-        display:flex;
-        flex-wrap:nowrap;
-        gap:0;
-        min-width:max-content;
-      }
-      .nav a{
-        margin-right:14px;
-        white-space:nowrap;
-        font-size:.78rem;
-      }
-      .quick-map-btn,.account-btn{
-        white-space:nowrap;
-        font-size:.78rem;
-      }
+      .mobile-menu-btn{display:inline-flex}
+      .top-right{display:none}
       .stats{grid-template-columns:1fr}
       #map{
         height:430px;
@@ -608,6 +621,7 @@
   <header class="top">
     <div class="wrap topbar">
       <div class="brand">By Rafael Hanson</div>
+      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-controls="mobileMenuPanel" aria-expanded="false">☰</button>
       <div class="top-right">
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador Inteligente</a><a href="#my-routes">Minhas rotas</a><a href="#destinos">Destinos</a>
@@ -623,6 +637,14 @@
         </div>
       </div>
       </div>
+    </div>
+    <div id="mobileMenuPanel" class="mobile-menu-panel" hidden>
+      <a class="mobile-menu-link" href="#home">Home</a>
+      <a class="mobile-menu-link" href="#planner">Planejador Inteligente</a>
+      <a class="mobile-menu-link" href="#my-routes">Minhas rotas</a>
+      <a class="mobile-menu-link" href="#destinos">Destinos</a>
+      <a class="mobile-menu-link" href="#mapa">Mapa colaborativo</a>
+      <a class="mobile-menu-link" href="#my-collabs">Minhas colaborações</a>
     </div>
   </header>
 
@@ -786,6 +808,7 @@
       <div class="toolbar-col">
         <div id="catBar" class="toolbar"></div>
         <div class="toolbar">
+          <button id="mapGoCollabsBtn" class="pill">Minhas colaborações</button>
           <button id="mapBackToCollabsBtn" class="pill" style="display:none">Voltar para minhas colaborações</button>
           <button id="addCommunityPointBtn" class="pill">Adicionar ponto colaborativo</button>
           <button id="useGpsPointBtn" class="pill">Usar meu GPS</button>

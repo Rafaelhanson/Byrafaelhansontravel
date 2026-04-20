@@ -80,6 +80,8 @@ const routeSaveBtn = document.getElementById("routeSaveBtn");
 const routePdfBtn = document.getElementById("routePdfBtn");
 const routeFocusBackBtn = document.getElementById("routeFocusBackBtn");
 const quickMapBtn = document.getElementById("quickMapBtn");
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const mobileMenuPanel = document.getElementById("mobileMenuPanel");
 const accountMenuBtn = document.getElementById("accountMenuBtn");
 const accountMenuPanel = document.getElementById("accountMenuPanel");
 const styleEl = document.getElementById("style");
@@ -106,6 +108,7 @@ const collabDetailBodyEl = document.getElementById("collabDetailBody");
 const backToCollabsBtn = document.getElementById("backToCollabsBtn");
 const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
 const useGpsPointBtn = document.getElementById("useGpsPointBtn");
+const mapGoCollabsBtn = document.getElementById("mapGoCollabsBtn");
 const mapBackToCollabsBtn = document.getElementById("mapBackToCollabsBtn");
 const communityStatusEl = document.getElementById("communityStatus");
 const communityModalEl = document.getElementById("communityModal");
@@ -224,6 +227,28 @@ function bindAccountMenu() {
       exitRouteFocusMode();
       if (destinosSectionEl) destinosSectionEl.hidden = true;
       accountMenuPanel.hidden = true;
+    });
+  });
+}
+
+function bindMobileMenu() {
+  if (!mobileMenuBtn || !mobileMenuPanel) return;
+  mobileMenuBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = mobileMenuPanel.hidden;
+    mobileMenuPanel.hidden = !willOpen;
+    mobileMenuBtn.setAttribute("aria-expanded", willOpen ? "true" : "false");
+  });
+  document.addEventListener("click", (event) => {
+    if (!mobileMenuPanel.hidden && !event.target.closest("#mobileMenuPanel") && !event.target.closest("#mobileMenuBtn")) {
+      mobileMenuPanel.hidden = true;
+      mobileMenuBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+  mobileMenuPanel.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      mobileMenuPanel.hidden = true;
+      mobileMenuBtn.setAttribute("aria-expanded", "false");
     });
   });
 }
@@ -2098,17 +2123,25 @@ backToCollabsBtn?.addEventListener("click", () => {
 });
 
 window.addEventListener("hashchange", () => {
+  if (mobileMenuPanel && mobileMenuBtn) {
+    mobileMenuPanel.hidden = true;
+    mobileMenuBtn.setAttribute("aria-expanded", "false");
+  }
   handleSectionVisibilityByHash(window.location.hash || "#home");
 });
 
 bindAccountMenu();
 quickMapBtn?.addEventListener("click", openCollaborativeMap);
+mapGoCollabsBtn?.addEventListener("click", () => {
+  window.location.hash = "#my-collabs";
+});
 mapBackToCollabsBtn?.addEventListener("click", () => {
   const target = mapBackTargetHash || "#my-collabs";
   mapBackTargetHash = null;
   if (mapBackToCollabsBtn) mapBackToCollabsBtn.style.display = "none";
   window.location.hash = target;
 });
+bindMobileMenu();
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
