@@ -1046,7 +1046,7 @@ function pointInfoAtTarget(coords, cumulative, target) {
   return { index: last, coord: coords[last] };
 }
 
-async function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCode, toCode) {
+function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCode, toCode) {
   const safeStart = Math.max(0, Math.min(startIdx, endIdx));
   const safeEnd = Math.max(0, Math.max(startIdx, endIdx));
   const span = safeEnd - safeStart;
@@ -1059,7 +1059,7 @@ async function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCo
 
   let best = null;
   for (const crossing of candidates) {
-    const step = Math.max(1, Math.floor(span / 220));
+    const step = Math.max(1, Math.floor(span / 180));
     let bestIdx = safeStart;
     let minDist = Number.POSITIVE_INFINITY;
     for (let idx = safeStart; idx <= safeEnd; idx += step) {
@@ -1071,7 +1071,7 @@ async function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCo
         bestIdx = idx;
       }
     }
-    if (minDist <= 35 && (!best || minDist < best.distKm)) {
+    if (minDist <= 18 && (!best || minDist < best.distKm)) {
       best = { crossing, idx: bestIdx, distKm: minDist };
     }
   }
@@ -1270,9 +1270,12 @@ async function fetchDrivingRoute(from, to) {
   ];
   let lastError = null;
   for (const base of routeServers) {
+    const osrmUrl = `${base}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true&annotations=distance,duration`;
     try {
-      const osrmUrl = `${base}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true&annotations=distance,duration`;
-      const response = await fetch(osrmUrl);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000);
+      const response = await fetch(osrmUrl, { signal: controller.signal });
+      clearTimeout(timer);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (!data.routes?.length) throw new Error("Sem rota");
@@ -1307,8 +1310,8 @@ function drawDayStops(boundaryPoints, days) {
     marker.setZIndexOffset(1800);
     marker.addTo(dayStopsLayer);
 
-    if (day.borderCrossing) {
-      const borderCoord = Array.isArray(day.borderCoord) ? day.borderCoord : stop.coord;
+    if (day.borderCrossing && Array.isArray(day.borderCoord)) {
+      const borderCoord = day.borderCoord;
       const borderIcon = L.divIcon({
         className: "border-stop-icon",
         html: `<div style="min-width:36px;height:24px;border-radius:999px;background:#b42318;color:#fff;display:flex;align-items:center;justify-content:center;font:700 11px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28);padding:0 8px">FR</div>`,
@@ -1739,6 +1742,7 @@ async function generatePlan() {
     return;
   }
 
+  let stage = "início";
   try {
     const waypoints = [selectedOrigin, ...destinations];
     const finalDestination = waypoints[waypoints.length - 1];
@@ -1748,6 +1752,7 @@ async function generatePlan() {
     const segmentDurationStepsSec = [];
 
     for (let i = 0; i < waypoints.length - 1; i += 1) {
+      stage = `rota entre ${waypoints[i].name} e ${waypoints[i + 1].name}`;
       const segment = await fetchDrivingRoute(waypoints[i], waypoints[i + 1]);
       const segmentCoords = segment.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
       if (!routeCoords.length) routeCoords = segmentCoords;
@@ -1815,7 +1820,9 @@ async function generatePlan() {
     }
     boundaries.push(totalMetric);
 
+    stage = "pontos diários";
     const boundaryPoints = boundaries.map((targetValue) => pointInfoAtTarget(routeCoords, activeCumulative, targetValue));
+    stage = "geocodificação dos pontos";
     const dayMetas = await Promise.all(
       boundaryPoints.map(async (point, index) => {
         const meta = await reverseGeocodeMeta(point.coord[0], point.coord[1]);
@@ -1825,6 +1832,7 @@ async function generatePlan() {
       })
     );
 
+    stage = "montagem dos dias";
     const days = [];
     for (let i = 1; i < boundaries.length; i += 1) {
       const prevIdx = boundaryPoints[i - 1].index;
@@ -1838,18 +1846,21 @@ async function generatePlan() {
         toMeta?.countryCode &&
         fromMeta.countryCode !== toMeta.countryCode
       );
-      let borderCrossing = false;
-      let borderText = "";
+      let borderCrossing = countryChangedOnEnds;
+      let borderText = countryChangedOnEnds
+        ? `Saída de ${COUNTRY_NAMES[fromMeta.countryCode] || fromMeta.countryCode} e entrada em ${COUNTRY_NAMES[toMeta.countryCode] || toMeta.countryCode}.`
+        : "";
       let borderCoord = null;
       if (countryChangedOnEnds) {
         const crossing = await withTimeout(
           () => detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx, fromMeta.countryCode, toMeta.countryCode),
-          1800
+          1200
         );
         if (crossing) {
-          borderCrossing = true;
           borderCoord = crossing.coord;
-          borderText = `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
+          borderText = crossing.name
+            ? `${crossing.name}: saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`
+            : `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
         }
       }
       days.push({
@@ -1918,9 +1929,11 @@ async function generatePlan() {
       warnEl.textContent = "Rota gerada. Não encontrei postos/hotéis/campings próximos neste momento.";
     }
   } catch (error) {
+    console.error("Erro ao gerar rota:", error);
     if (planActionsEl) planActionsEl.style.display = "none";
     exitRouteFocusMode();
-    warnEl.textContent = "Não foi possível calcular a rota agora. Tente selecionar a cidade na sugestão ou tente novamente em alguns segundos.";
+    const detail = error?.message ? ` (${error.message})` : "";
+    warnEl.textContent = `Não foi possível calcular a rota agora (etapa: ${stage})${detail}. Tente novamente em alguns segundos.`;
   }
 }
 
