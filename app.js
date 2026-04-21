@@ -87,6 +87,76 @@ const CITY_COUNTRY_BY_NAME = {
   Montevideo: "UY"
 };
 
+const EXTRA_CITY_REFERENCE = [
+  ["Rio Grande", -53.7861, -67.7010],
+  ["Rio Gallegos", -51.6230, -69.2168],
+  ["Comodoro Rivadavia", -45.8641, -67.4966],
+  ["Caleta Olivia", -46.4393, -67.5286],
+  ["Puerto San Julian", -49.3068, -67.7290],
+  ["Trelew", -43.2489, -65.3051],
+  ["Rawson", -43.3002, -65.1023],
+  ["Bahia Blanca", -38.7196, -62.2724],
+  ["Viedma", -40.8083, -63.0000],
+  ["San Antonio Oeste", -40.7319, -64.9470],
+  ["General Roca", -39.0334, -67.5830],
+  ["Cipolletti", -38.9339, -67.9903],
+  ["Santa Rosa", -36.6200, -64.2900],
+  ["Azul", -36.7760, -59.8585],
+  ["Mar del Plata", -38.0055, -57.5426],
+  ["La Plata", -34.9205, -57.9536],
+  ["Junin", -34.5889, -60.9496],
+  ["Pergamino", -33.8892, -60.5736],
+  ["Venado Tuerto", -33.7456, -61.9688],
+  ["Concordia", -31.3929, -58.0174],
+  ["Gualeguaychu", -33.0106, -58.5172],
+  ["Paso de los Libres", -29.7125, -57.0864],
+  ["Santo Tome", -28.5494, -56.0378],
+  ["Itaqui", -29.1250, -56.5531],
+  ["Sao Borja", -28.6587, -56.0044],
+  ["Vacaria", -28.5078, -50.9426],
+  ["Lages", -27.8156, -50.3259],
+  ["Joinville", -26.3044, -48.8487],
+  ["Sao Jose dos Pinhais", -25.5317, -49.2036],
+  ["Campinas", -22.9056, -47.0608],
+  ["Sao Jose do Rio Preto", -20.8113, -49.3758]
+].map(([name, lat, lng]) => ({ name, lat, lng }));
+
+CITY_REFERENCE.push(...EXTRA_CITY_REFERENCE);
+
+Object.assign(CITY_COUNTRY_BY_NAME, {
+  "Rio Grande": "AR",
+  "Rio Gallegos": "AR",
+  "Comodoro Rivadavia": "AR",
+  "Caleta Olivia": "AR",
+  "Puerto San Julian": "AR",
+  Trelew: "AR",
+  Rawson: "AR",
+  "Bahia Blanca": "AR",
+  Viedma: "AR",
+  "San Antonio Oeste": "AR",
+  "General Roca": "AR",
+  Cipolletti: "AR",
+  "Santa Rosa": "AR",
+  Azul: "AR",
+  "Mar del Plata": "AR",
+  "La Plata": "AR",
+  Junin: "AR",
+  Pergamino: "AR",
+  "Venado Tuerto": "AR",
+  Concordia: "AR",
+  Gualeguaychu: "AR",
+  "Paso de los Libres": "AR",
+  "Santo Tome": "AR",
+  Itaqui: "BR",
+  "Sao Borja": "BR",
+  Vacaria: "BR",
+  Lages: "BR",
+  Joinville: "BR",
+  "Sao Jose dos Pinhais": "BR",
+  Campinas: "BR",
+  "Sao Jose do Rio Preto": "BR"
+});
+
 const KNOWN_BORDER_CROSSINGS = [
   { name: "Uruguaiana / Paso de los Libres", lat: -29.7603, lon: -57.0862, from: "BR", to: "AR" },
   { name: "São Borja / Santo Tomé", lat: -28.6582, lon: -56.0046, from: "BR", to: "AR" },
@@ -948,7 +1018,7 @@ function applySavedSnapshotToUi(route) {
   sumTimeEl.textContent = `${Number(route.totalHours || 0).toFixed(1)} h`;
   sumDaysEl.textContent = String(route.totalDays || route.days.length || 0);
   if (daysInputEl) daysInputEl.value = String(route.totalDays || route.days.length || "");
-  daysOutEl.innerHTML = renderDaysHtml(route.days, route.style || styleEl?.value || "fast", route.dayLimitMode || dayLimitModeEl?.value || "km");
+  daysOutEl.innerHTML = renderDaysHtmlEnhanced(route.days, route.style || styleEl?.value || "fast", route.dayLimitMode || dayLimitModeEl?.value || "km");
 
   const savedBoundaryPoints = Array.isArray(route.boundaryPoints) ? route.boundaryPoints : [];
   if (savedBoundaryPoints.length >= 2) drawDayStops(savedBoundaryPoints, route.days);
@@ -1044,6 +1114,34 @@ function pointInfoAtTarget(coords, cumulative, target) {
   }
   const last = coords.length - 1;
   return { index: last, coord: coords[last] };
+}
+
+function buildSegmentGoogleMapsUrl(startCoord, endCoord) {
+  if (
+    Array.isArray(startCoord) &&
+    startCoord.length === 2 &&
+    Array.isArray(endCoord) &&
+    endCoord.length === 2
+  ) {
+    const origin = `${startCoord[0]},${startCoord[1]}`;
+    const destination = `${endCoord[0]},${endCoord[1]}`;
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+  }
+  return "";
+}
+
+function renderDaysHtmlEnhanced(days = [], style = "fast", limitMode = "km") {
+  return days
+    .map((day) => {
+      const borderHtml = day.borderCrossing
+        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
+        : "";
+      const mapsLinkHtml = day.googleMapsUrl
+        ? `<div class="tiny" style="margin-top:4px"><a href="${day.googleMapsUrl}" target="_blank" rel="noreferrer" style="color:#ffffff;text-decoration:underline">Ver no Google Maps</a></div>`
+        : "";
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
+    })
+    .join("");
 }
 
 function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCode, toCode) {
@@ -1837,6 +1935,8 @@ async function generatePlan() {
     for (let i = 1; i < boundaries.length; i += 1) {
       const prevIdx = boundaryPoints[i - 1].index;
       const currIdx = boundaryPoints[i].index;
+      const startCoord = boundaryPoints[i - 1].coord;
+      const endCoord = boundaryPoints[i].coord;
       const dist = (cumulativeKm[currIdx] || 0) - (cumulativeKm[prevIdx] || 0);
       const duration = (cumulativeHours[currIdx] || 0) - (cumulativeHours[prevIdx] || 0);
       const fromMeta = dayMetas[i - 1];
@@ -1869,6 +1969,9 @@ async function generatePlan() {
         to: toMeta?.label || "Parada",
         km: Math.round(dist),
         hours: duration.toFixed(1),
+        startCoord,
+        endCoord,
+        googleMapsUrl: buildSegmentGoogleMapsUrl(startCoord, endCoord),
         borderCrossing,
         borderText,
         borderCoord
@@ -1893,7 +1996,7 @@ async function generatePlan() {
       })
       .join("");
 
-    daysOutEl.innerHTML = renderDaysHtml(days, styleEl.value, limitMode);
+    daysOutEl.innerHTML = renderDaysHtmlEnhanced(days, styleEl.value, limitMode);
     currentPlanSnapshot = {
       id: String(Date.now()),
       createdAt: Date.now(),
