@@ -970,6 +970,47 @@ function pointInfoAtTarget(coords, cumulative, target) {
   return { index: last, coord: coords[last] };
 }
 
+async function detectCountryTransitionOnSegment(coords, startIdx, endIdx) {
+  const safeStart = Math.max(0, Math.min(startIdx, endIdx));
+  const safeEnd = Math.max(0, Math.max(startIdx, endIdx));
+  const span = safeEnd - safeStart;
+  if (span < 2) return null;
+
+  const sampleSteps = Math.min(8, Math.max(4, Math.floor(span / 120) + 2));
+  const samples = [];
+  for (let step = 0; step <= sampleSteps; step += 1) {
+    const idx = Math.min(safeEnd, Math.max(safeStart, Math.round(safeStart + (span * step) / sampleSteps)));
+    if (samples.length && samples[samples.length - 1].idx === idx) continue;
+    const coord = coords[idx];
+    if (!coord) continue;
+    const meta = await reverseGeocodeMeta(coord[0], coord[1]);
+    samples.push({
+      idx,
+      coord,
+      countryCode: meta?.countryCode || "",
+      country: meta?.country || ""
+    });
+  }
+
+  for (let i = 1; i < samples.length; i += 1) {
+    const prev = samples[i - 1];
+    const curr = samples[i];
+    if (!prev.countryCode || !curr.countryCode) continue;
+    if (prev.countryCode !== curr.countryCode) {
+      return {
+        index: curr.idx,
+        coord: curr.coord,
+        fromCode: prev.countryCode,
+        toCode: curr.countryCode,
+        fromCountry: prev.country || prev.countryCode,
+        toCountry: curr.country || curr.countryCode
+      };
+    }
+  }
+
+  return null;
+}
+
 const reverseGeocodeCache = new Map();
 async function reverseGeocodeMeta(lat, lon) {
   const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
@@ -1176,18 +1217,21 @@ function drawDayStops(boundaryPoints, days) {
     const marker = L.marker(stop.coord, { icon }).bindPopup(
       `<b>Dia ${dayNumber}</b><br>${day.from} → ${day.to}<br>${day.km} km • ${day.hours} h${day.borderCrossing ? `<br><span style="color:#b42318;font-weight:700">Fronteira/aduana neste trecho</span>` : ""}`
     );
+    marker.setZIndexOffset(1800);
     marker.addTo(dayStopsLayer);
 
     if (day.borderCrossing) {
+      const borderCoord = Array.isArray(day.borderCoord) ? day.borderCoord : stop.coord;
       const borderIcon = L.divIcon({
         className: "border-stop-icon",
         html: `<div style="min-width:36px;height:24px;border-radius:999px;background:#b42318;color:#fff;display:flex;align-items:center;justify-content:center;font:700 11px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28);padding:0 8px">FR</div>`,
         iconSize: [36, 24],
         iconAnchor: [18, 12]
       });
-      L.marker(stop.coord, { icon: borderIcon })
+      const borderMarker = L.marker(borderCoord, { icon: borderIcon })
         .bindPopup(`<b>Fronteira/aduana</b><br>${day.borderText || "Mudança de país neste dia."}`)
         .addTo(borderCrossingsLayer);
+      borderMarker.setZIndexOffset(1900);
     }
   }
 
@@ -1702,7 +1746,22 @@ async function generatePlan() {
       const duration = (cumulativeHours[currIdx] || 0) - (cumulativeHours[prevIdx] || 0);
       const fromMeta = dayMetas[i - 1];
       const toMeta = dayMetas[i];
-      const borderCrossing = Boolean(fromMeta?.countryCode && toMeta?.countryCode && fromMeta.countryCode !== toMeta.countryCode);
+      const countryChangedOnEnds = Boolean(
+        fromMeta?.countryCode &&
+        toMeta?.countryCode &&
+        fromMeta.countryCode !== toMeta.countryCode
+      );
+      let borderCrossing = false;
+      let borderText = "";
+      let borderCoord = null;
+      if (countryChangedOnEnds) {
+        const crossing = await detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx);
+        if (crossing) {
+          borderCrossing = true;
+          borderCoord = crossing.coord;
+          borderText = `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
+        }
+      }
       days.push({
         day: i,
         from: fromMeta?.label || "Origem",
@@ -1710,7 +1769,8 @@ async function generatePlan() {
         km: Math.round(dist),
         hours: duration.toFixed(1),
         borderCrossing,
-        borderText: borderCrossing ? `Saída de ${fromMeta.country || fromMeta.countryCode} e entrada em ${toMeta.country || toMeta.countryCode}.` : ""
+        borderText,
+        borderCoord
       });
     }
 
