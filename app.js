@@ -976,7 +976,7 @@ async function detectCountryTransitionOnSegment(coords, startIdx, endIdx) {
   const span = safeEnd - safeStart;
   if (span < 2) return null;
 
-  const sampleSteps = Math.min(8, Math.max(4, Math.floor(span / 120) + 2));
+  const sampleSteps = Math.min(4, Math.max(2, Math.floor(span / 220) + 1));
   const samples = [];
   for (let step = 0; step <= sampleSteps; step += 1) {
     const idx = Math.min(safeEnd, Math.max(safeStart, Math.round(safeStart + (span * step) / sampleSteps)));
@@ -1009,6 +1009,13 @@ async function detectCountryTransitionOnSegment(coords, startIdx, endIdx) {
   }
 
   return null;
+}
+
+async function withTimeout(promiseFactory, timeoutMs = 1800) {
+  return await Promise.race([
+    Promise.resolve().then(promiseFactory),
+    new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs))
+  ]);
 }
 
 const reverseGeocodeCache = new Map();
@@ -1755,11 +1762,18 @@ async function generatePlan() {
       let borderText = "";
       let borderCoord = null;
       if (countryChangedOnEnds) {
-        const crossing = await detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx);
+        const crossing = await withTimeout(
+          () => detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx),
+          1800
+        );
         if (crossing) {
           borderCrossing = true;
           borderCoord = crossing.coord;
           borderText = `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
+        } else {
+          borderCrossing = true;
+          borderCoord = boundaryPoints[i].coord;
+          borderText = `Saída de ${fromMeta.country || fromMeta.countryCode} e entrada em ${toMeta.country || toMeta.countryCode}.`;
         }
       }
       days.push({
