@@ -65,6 +65,7 @@
     }
     .topbar{display:flex;justify-content:center;align-items:center;padding:14px 0;gap:10px}
     .top-right{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;width:100%}
+    .mobile-actions{display:none;align-items:center;gap:8px}
     .mobile-menu-btn{
       display:none;
       border:1px solid rgba(134,209,165,.45);
@@ -73,6 +74,16 @@
       border-radius:10px;
       padding:.38rem .58rem;
       font:700 1rem/1 Inter;
+      cursor:pointer;
+    }
+    .mobile-logout-btn{
+      display:none;
+      border:1px solid rgba(134,209,165,.45);
+      background:rgba(16,37,33,.72);
+      color:#ecf8f3;
+      border-radius:10px;
+      padding:.38rem .7rem;
+      font:700 .8rem/1 Inter;
       cursor:pointer;
     }
     .mobile-menu-panel{
@@ -607,7 +618,9 @@
         justify-content:space-between;
         padding:10px 0;
       }
+      .mobile-actions{display:flex}
       .mobile-menu-btn{display:inline-flex}
+      .mobile-logout-btn{display:inline-flex}
       .top-right{display:none}
       .stats{grid-template-columns:1fr}
       .intro-section{
@@ -632,7 +645,10 @@
   <header class="top">
     <div class="wrap topbar">
       <div class="brand">By Rafael Hanson</div>
-      <button id="mobileMenuBtn" class="mobile-menu-btn" aria-controls="mobileMenuPanel" aria-expanded="false">☰</button>
+      <div class="mobile-actions">
+        <button id="mobileMenuBtn" class="mobile-menu-btn" aria-controls="mobileMenuPanel" aria-expanded="false">☰</button>
+        <button id="mobileLogoutBtn" class="mobile-logout-btn" type="button">Sair</button>
+      </div>
       <div class="top-right">
       <nav class="nav">
         <a href="#home" class="active">Home</a><a href="#planner">Planejador Inteligente</a><a href="#my-routes">Minhas rotas</a><a href="#destinos">Destinos</a>
@@ -709,7 +725,6 @@
           <p class="intro-quote">Bora planejar a sua próxima viagem? Se você quer sair do básico e viver uma aventura de verdade… você está no lugar certo.</p>
           <div class="intro-cta">
             <a class="btn btn-p" href="#planner">Começar agora</a>
-            <a class="btn btn-g" href="#my-collabs">Ver colaborações</a>
           </div>
           <h4 class="intro-gallery-title">Algumas das minhas aventuras por aí</h4>
           <div class="intro-gallery">
@@ -901,6 +916,7 @@
     window.AppAuth.requireAuth().then(() => {
       if (window.AppAuth && typeof window.AppAuth.bindLogoutButton === "function") {
         window.AppAuth.bindLogoutButton("logoutBtn");
+        window.AppAuth.bindLogoutButton("mobileLogoutBtn");
       }
       if (window.AppAuth && typeof window.AppAuth.bindUserEmailChip === "function") {
         window.AppAuth.bindUserEmailChip("userEmailChip");
