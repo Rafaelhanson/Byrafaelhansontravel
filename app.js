@@ -47,6 +47,58 @@ const CITY_REFERENCE = [
   ["Ushuaia", -54.8019, -68.303], ["Punta Arenas", -53.1638, -70.9171], ["Puerto Natales", -51.7308, -72.506], ["Montevideo", -34.9011, -56.1645]
 ].map(([name, lat, lng]) => ({ name, lat, lng }));
 
+const COUNTRY_NAMES = {
+  BR: "Brasil",
+  AR: "Argentina",
+  CL: "Chile",
+  UY: "Uruguai",
+  PY: "Paraguai",
+  BO: "Bolívia",
+  PE: "Peru"
+};
+
+const CITY_COUNTRY_BY_NAME = {
+  "São Paulo": "BR",
+  "Rio de Janeiro": "BR",
+  Curitiba: "BR",
+  "Porto Alegre": "BR",
+  Florianópolis: "BR",
+  Brasília: "BR",
+  "Belo Horizonte": "BR",
+  Salvador: "BR",
+  Erechim: "BR",
+  Chapecó: "BR",
+  "Passo Fundo": "BR",
+  "Santa Maria": "BR",
+  Uruguaiana: "BR",
+  Pelotas: "BR",
+  "Caxias do Sul": "BR",
+  "Buenos Aires": "AR",
+  Rosário: "AR",
+  Córdoba: "AR",
+  Mendoza: "AR",
+  Neuquén: "AR",
+  Bariloche: "AR",
+  "El Calafate": "AR",
+  "El Chaltén": "AR",
+  Ushuaia: "AR",
+  "Punta Arenas": "CL",
+  "Puerto Natales": "CL",
+  Montevideo: "UY"
+};
+
+const KNOWN_BORDER_CROSSINGS = [
+  { name: "Uruguaiana / Paso de los Libres", lat: -29.7603, lon: -57.0862, from: "BR", to: "AR" },
+  { name: "São Borja / Santo Tomé", lat: -28.6582, lon: -56.0046, from: "BR", to: "AR" },
+  { name: "Foz do Iguaçu / Puerto Iguazú", lat: -25.5975, lon: -54.5763, from: "BR", to: "AR" },
+  { name: "Paso San Sebastián", lat: -53.3382, lon: -68.4031, from: "AR", to: "CL" },
+  { name: "Monte Aymond / Integración Austral", lat: -52.022, lon: -69.5825, from: "AR", to: "CL" },
+  { name: "Dorotea / Puerto Natales", lat: -51.5721, lon: -72.2533, from: "AR", to: "CL" },
+  { name: "Cardenal Samoré", lat: -40.7178, lon: -71.7338, from: "AR", to: "CL" },
+  { name: "Pino Hachado", lat: -38.6584, lon: -70.9573, from: "AR", to: "CL" },
+  { name: "Los Libertadores", lat: -32.8449, lon: -70.1028, from: "AR", to: "CL" }
+];
+
 const CITY_ALIASES = {
   erixim: "Erechim",
   erexim: "Erechim",
@@ -943,6 +995,30 @@ function haversineKm(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+function nearestCityByCoord(lat, lon) {
+  let min = Number.POSITIVE_INFINITY;
+  let nearest = null;
+  for (const city of CITY_REFERENCE) {
+    const d = haversineKm([lat, lon], [city.lat, city.lng]);
+    if (d < min) {
+      min = d;
+      nearest = city;
+    }
+  }
+  return nearest;
+}
+
+function metaFromCoordFast(lat, lon) {
+  const nearest = nearestCityByCoord(lat, lon);
+  if (!nearest) return { label: "Parada intermediária", country: "", countryCode: "" };
+  const countryCode = CITY_COUNTRY_BY_NAME[nearest.name] || "";
+  return {
+    label: nearest.name,
+    countryCode,
+    country: COUNTRY_NAMES[countryCode] || ""
+  };
+}
+
 function buildCumulativeDistances(coords) {
   const cumulative = [0];
   for (let i = 1; i < coords.length; i += 1) {
@@ -970,45 +1046,46 @@ function pointInfoAtTarget(coords, cumulative, target) {
   return { index: last, coord: coords[last] };
 }
 
-async function detectCountryTransitionOnSegment(coords, startIdx, endIdx) {
+async function detectCountryTransitionOnSegment(coords, startIdx, endIdx, fromCode, toCode) {
   const safeStart = Math.max(0, Math.min(startIdx, endIdx));
   const safeEnd = Math.max(0, Math.max(startIdx, endIdx));
   const span = safeEnd - safeStart;
   if (span < 2) return null;
 
-  const sampleSteps = Math.min(4, Math.max(2, Math.floor(span / 220) + 1));
-  const samples = [];
-  for (let step = 0; step <= sampleSteps; step += 1) {
-    const idx = Math.min(safeEnd, Math.max(safeStart, Math.round(safeStart + (span * step) / sampleSteps)));
-    if (samples.length && samples[samples.length - 1].idx === idx) continue;
-    const coord = coords[idx];
-    if (!coord) continue;
-    const meta = await reverseGeocodeMeta(coord[0], coord[1]);
-    samples.push({
-      idx,
-      coord,
-      countryCode: meta?.countryCode || "",
-      country: meta?.country || ""
-    });
-  }
+  const candidates = KNOWN_BORDER_CROSSINGS.filter((item) =>
+    (item.from === fromCode && item.to === toCode) || (item.from === toCode && item.to === fromCode)
+  );
+  if (!candidates.length) return null;
 
-  for (let i = 1; i < samples.length; i += 1) {
-    const prev = samples[i - 1];
-    const curr = samples[i];
-    if (!prev.countryCode || !curr.countryCode) continue;
-    if (prev.countryCode !== curr.countryCode) {
-      return {
-        index: curr.idx,
-        coord: curr.coord,
-        fromCode: prev.countryCode,
-        toCode: curr.countryCode,
-        fromCountry: prev.country || prev.countryCode,
-        toCountry: curr.country || curr.countryCode
-      };
+  let best = null;
+  for (const crossing of candidates) {
+    const step = Math.max(1, Math.floor(span / 220));
+    let bestIdx = safeStart;
+    let minDist = Number.POSITIVE_INFINITY;
+    for (let idx = safeStart; idx <= safeEnd; idx += step) {
+      const coord = coords[idx];
+      if (!coord) continue;
+      const d = haversineKm(coord, [crossing.lat, crossing.lon]);
+      if (d < minDist) {
+        minDist = d;
+        bestIdx = idx;
+      }
+    }
+    if (minDist <= 35 && (!best || minDist < best.distKm)) {
+      best = { crossing, idx: bestIdx, distKm: minDist };
     }
   }
 
-  return null;
+  if (!best) return null;
+  return {
+    index: best.idx,
+    coord: coords[best.idx] || [best.crossing.lat, best.crossing.lon],
+    fromCode,
+    toCode,
+    fromCountry: COUNTRY_NAMES[fromCode] || fromCode,
+    toCountry: COUNTRY_NAMES[toCode] || toCode,
+    name: best.crossing.name
+  };
 }
 
 async function withTimeout(promiseFactory, timeoutMs = 1800) {
@@ -1022,6 +1099,9 @@ const reverseGeocodeCache = new Map();
 async function reverseGeocodeMeta(lat, lon) {
   const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
   if (reverseGeocodeCache.has(key)) return reverseGeocodeCache.get(key);
+  const quickMeta = metaFromCoordFast(lat, lon);
+  reverseGeocodeCache.set(key, quickMeta);
+  return quickMeta;
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
     const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
@@ -1763,17 +1843,13 @@ async function generatePlan() {
       let borderCoord = null;
       if (countryChangedOnEnds) {
         const crossing = await withTimeout(
-          () => detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx),
+          () => detectCountryTransitionOnSegment(routeCoords, prevIdx, currIdx, fromMeta.countryCode, toMeta.countryCode),
           1800
         );
         if (crossing) {
           borderCrossing = true;
           borderCoord = crossing.coord;
           borderText = `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
-        } else {
-          borderCrossing = true;
-          borderCoord = boundaryPoints[i].coord;
-          borderText = `Saída de ${fromMeta.country || fromMeta.countryCode} e entrada em ${toMeta.country || toMeta.countryCode}.`;
         }
       }
       days.push({

@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v7";
+const CACHE_NAME = "by-rafael-hanson-v8";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
