@@ -437,6 +437,9 @@ let routesStorageKeyCache = null;
 let expensesStorageKeyCache = null;
 let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
+let currentUserCache = null;
+let cloudDataCache = null;
+let cloudDataLoadedForUser = null;
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
@@ -528,7 +531,22 @@ function initSupabaseClient() {
   return supabaseClient;
 }
 
+async function getCurrentSessionUser() {
+  if (currentUserCache) return currentUserCache;
+  try {
+    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
+      const session = await window.AppAuth.getSession();
+      const user = session?.user || null;
+      currentUserCache = user;
+      return user;
+    }
+  } catch (_error) {}
+  return null;
+}
+
 async function getCurrentUserEmail() {
+  const cachedUser = await getCurrentSessionUser();
+  if (cachedUser?.email) return cachedUser.email.trim().toLowerCase();
   try {
     if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
       const session = await window.AppAuth.getSession();
@@ -536,6 +554,112 @@ async function getCurrentUserEmail() {
     }
   } catch (_error) {}
   return "usuario@sem-email";
+}
+
+async function getCurrentUserId() {
+  const cachedUser = await getCurrentSessionUser();
+  if (cachedUser?.id) return cachedUser.id;
+  try {
+    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
+      const session = await window.AppAuth.getSession();
+      return session?.user?.id || null;
+    }
+  } catch (_error) {}
+  return null;
+}
+
+function getUserDataTableName() {
+  const cfg = window.APP_AUTH_CONFIG || {};
+  return cfg.userDataTable || "app_user_data";
+}
+
+function normalizeArrayData(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function arraysEqualByJson(a, b) {
+  try {
+    return JSON.stringify(normalizeArrayData(a)) === JSON.stringify(normalizeArrayData(b));
+  } catch (_error) {
+    return false;
+  }
+}
+
+function mergeByIdKeepNewest(primary = [], secondary = []) {
+  const byId = new Map();
+  [...normalizeArrayData(secondary), ...normalizeArrayData(primary)].forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    const id = item.id ? String(item.id) : "";
+    if (!id) return;
+    const current = byId.get(id);
+    if (!current) {
+      byId.set(id, item);
+      return;
+    }
+    const currentCreatedAt = Number(current.createdAt || 0);
+    const incomingCreatedAt = Number(item.createdAt || 0);
+    if (incomingCreatedAt >= currentCreatedAt) byId.set(id, item);
+  });
+  return [...byId.values()].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+}
+
+async function readCloudUserData() {
+  const sb = initSupabaseClient();
+  const userId = await getCurrentUserId();
+  if (!sb || !userId) return null;
+
+  if (cloudDataLoadedForUser === userId && cloudDataCache) return cloudDataCache;
+
+  try {
+    const table = getUserDataTableName();
+    const { data, error } = await sb
+      .from(table)
+      .select("user_id, routes, trips, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) return null;
+
+    cloudDataCache = {
+      user_id: userId,
+      routes: normalizeArrayData(data?.routes),
+      trips: normalizeArrayData(data?.trips)
+    };
+    cloudDataLoadedForUser = userId;
+    return cloudDataCache;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function writeCloudUserDataField(field, value) {
+  const sb = initSupabaseClient();
+  const userId = await getCurrentUserId();
+  if (!sb || !userId) return false;
+
+  const current = (await readCloudUserData()) || {
+    user_id: userId,
+    routes: [],
+    trips: []
+  };
+
+  const payload = {
+    user_id: userId,
+    routes: normalizeArrayData(field === "routes" ? value : current.routes),
+    trips: normalizeArrayData(field === "trips" ? value : current.trips),
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const table = getUserDataTableName();
+    const { error } = await sb.from(table).upsert(payload, { onConflict: "user_id" });
+    if (error) return false;
+    cloudDataCache = payload;
+    cloudDataLoadedForUser = userId;
+    return true;
+  } catch (_error) {
+    return false;
+  }
 }
 
 function revealMapSection() {
@@ -922,21 +1046,37 @@ async function getRoutesStorageKey() {
 
 async function readSavedRoutes() {
   const key = await getRoutesStorageKey();
+  let localRoutes = [];
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return [];
+    if (!raw) localRoutes = [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
+    localRoutes = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error(error);
-    return [];
+    localRoutes = [];
   }
+
+  const cloudData = await readCloudUserData();
+  if (!cloudData) return localRoutes;
+
+  const cloudRoutes = normalizeArrayData(cloudData.routes);
+  const merged = mergeByIdKeepNewest(cloudRoutes, localRoutes);
+
+  if (!arraysEqualByJson(cloudRoutes, merged)) {
+    await writeCloudUserDataField("routes", merged);
+  }
+  if (!arraysEqualByJson(localRoutes, merged)) {
+    localStorage.setItem(key, JSON.stringify(merged));
+  }
+
+  return merged;
 }
 
 async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
-  localStorage.setItem(key, JSON.stringify(routes));
+  const safeRoutes = normalizeArrayData(routes);
+  localStorage.setItem(key, JSON.stringify(safeRoutes));
+  await writeCloudUserDataField("routes", safeRoutes);
 }
 
 async function getExpensesStorageKey() {
@@ -955,20 +1095,37 @@ async function getExpensesStorageKey() {
 
 async function readTravelExpenses() {
   const key = await getExpensesStorageKey();
+  let localTrips = [];
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return [];
+    if (!raw) localTrips = [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    localTrips = Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error(error);
-    return [];
+    localTrips = [];
   }
+
+  const cloudData = await readCloudUserData();
+  if (!cloudData) return localTrips;
+
+  const cloudTrips = normalizeArrayData(cloudData.trips);
+  const merged = mergeByIdKeepNewest(cloudTrips, localTrips);
+
+  if (!arraysEqualByJson(cloudTrips, merged)) {
+    await writeCloudUserDataField("trips", merged);
+  }
+  if (!arraysEqualByJson(localTrips, merged)) {
+    localStorage.setItem(key, JSON.stringify(merged));
+  }
+
+  return merged;
 }
 
 async function writeTravelExpenses(trips) {
   const key = await getExpensesStorageKey();
-  localStorage.setItem(key, JSON.stringify(trips));
+  const safeTrips = normalizeArrayData(trips);
+  localStorage.setItem(key, JSON.stringify(safeTrips));
+  await writeCloudUserDataField("trips", safeTrips);
 }
 
 function formatBrl(value) {
