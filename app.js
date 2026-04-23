@@ -88,6 +88,64 @@ const CITY_COUNTRY_BY_NAME = {
 };
 
 const EXTRA_CITY_REFERENCE = [
+  ["Mercedes", -29.1840, -58.0795],
+  ["Curuzu Cuatia", -29.7918, -58.0580],
+  ["Goya", -29.1449, -59.2645],
+  ["Monte Caseros", -30.2596, -57.6381],
+  ["Corrientes", -27.4692, -58.8306],
+  ["Resistencia", -27.4514, -58.9867],
+  ["Chajari", -30.7505, -57.9797],
+  ["Federal", -30.9546, -58.7833],
+  ["Villaguay", -31.8653, -59.0269],
+  ["Parana", -31.7413, -60.5115],
+  ["Victoria", -32.6184, -60.1548],
+  ["Colon", -32.2237, -58.1434],
+  ["Ceibas", -33.4979, -58.7683],
+  ["Zarate", -34.0950, -59.0248],
+  ["Campana", -34.1639, -58.9592],
+  ["San Antonio de Areco", -34.2491, -59.4714],
+  ["San Andres de Giles", -34.4470, -59.4445],
+  ["Lujan", -34.5703, -59.1050],
+  ["General Rodriguez", -34.6081, -58.9525],
+  ["Mercedes", -34.6515, -59.4307],
+  ["Gowland", -34.6529, -59.3619],
+  ["Olivera", -34.6265, -59.2522],
+  ["Jose Manuel Garcia", -34.7135, -59.4854],
+  ["Cuartel V", -34.6243, -58.8356],
+  ["Canuelas", -35.0518, -58.7606],
+  ["Lobos", -35.1855, -59.0946],
+  ["Suipacha", -34.7700, -59.6896],
+  ["Chivilcoy", -34.8957, -60.0167],
+  ["Nueve de Julio", -35.4444, -60.8831],
+  ["Trenque Lauquen", -35.9701, -62.7346],
+  ["Pehuajo", -35.8108, -61.8968],
+  ["Carhue", -37.1779, -62.7590],
+  ["General Acha", -37.3767, -64.6043],
+  ["Puelches", -38.1446, -65.9148],
+  ["Catriel", -37.8791, -67.7956],
+  ["Choele Choel", -39.2896, -65.6604],
+  ["Rio Colorado", -38.9931, -64.0951],
+  ["Sierra Grande", -41.6072, -65.3558],
+  ["Puerto Madryn", -42.7692, -65.0385],
+  ["Dolavon", -43.3072, -65.7067],
+  ["Las Plumas", -43.7202, -67.2849],
+  ["Los Altares", -43.8584, -68.4432],
+  ["Paso de Indios", -43.8624, -69.0452],
+  ["Tecka", -43.4924, -70.8110],
+  ["Gobernador Costa", -44.0493, -70.5970],
+  ["Sarmiento", -45.5882, -69.0690],
+  ["Rada Tilly", -45.9248, -67.5543],
+  ["Pico Truncado", -46.7947, -67.9574],
+  ["Las Heras", -46.5414, -68.9356],
+  ["Perito Moreno", -46.5899, -70.9297],
+  ["Bajo Caracoles", -47.4427, -70.9293],
+  ["Gobernador Gregores", -48.7504, -70.2474],
+  ["Tres Lagos", -49.5994, -71.4454],
+  ["Esperanza", -51.0264, -70.7568],
+  ["El Turbio", -51.5357, -72.3362],
+  ["Rio Turbio", -51.5331, -72.3360],
+  ["28 de Noviembre", -51.5835, -72.2137],
+  ["Tolhuin", -54.5107, -67.1955],
   ["Rio Grande", -53.7861, -67.7010],
   ["Rio Gallegos", -51.6230, -69.2168],
   ["Comodoro Rivadavia", -45.8641, -67.4966],
@@ -118,7 +176,23 @@ const EXTRA_CITY_REFERENCE = [
   ["Joinville", -26.3044, -48.8487],
   ["Sao Jose dos Pinhais", -25.5317, -49.2036],
   ["Campinas", -22.9056, -47.0608],
-  ["Sao Jose do Rio Preto", -20.8113, -49.3758]
+  ["Sao Jose do Rio Preto", -20.8113, -49.3758],
+  ["San Sebastian", -53.3295, -68.4283],
+  ["Cerro Sombrero", -52.7776, -69.2588],
+  ["Punta Delgada", -52.4871, -69.4740],
+  ["Villa Tehuelches", -52.3188, -71.5102],
+  ["Puerto Sara", -52.9920, -71.0230],
+  ["Puerto Natales", -51.7308, -72.5060],
+  ["Cerro Castillo", -51.2572, -72.3524],
+  ["Villa Cerro Castillo", -46.1207, -72.1501],
+  ["El Bolson", -41.9605, -71.5333],
+  ["Esquel", -42.9115, -71.3195],
+  ["Leleque", -42.4072, -71.1814],
+  ["Villa La Angostura", -40.7622, -71.6463],
+  ["Piedra del Aguila", -40.0484, -70.0745],
+  ["Zapala", -38.8992, -70.0544],
+  ["Porvenir", -53.3000, -70.3667],
+  ["Primera Angostura", -52.4848, -69.4327]
 ].map(([name, lat, lng]) => ({ name, lat, lng }));
 
 CITY_REFERENCE.push(...EXTRA_CITY_REFERENCE);
@@ -154,7 +228,80 @@ Object.assign(CITY_COUNTRY_BY_NAME, {
   Joinville: "BR",
   "Sao Jose dos Pinhais": "BR",
   Campinas: "BR",
-  "Sao Jose do Rio Preto": "BR"
+  "Sao Jose do Rio Preto": "BR",
+  Mercedes: "AR",
+  "Curuzu Cuatia": "AR",
+  Goya: "AR",
+  "Monte Caseros": "AR",
+  Corrientes: "AR",
+  Resistencia: "AR",
+  Chajari: "AR",
+  Federal: "AR",
+  Villaguay: "AR",
+  Parana: "AR",
+  Victoria: "AR",
+  Colon: "AR",
+  Ceibas: "AR",
+  Zarate: "AR",
+  Campana: "AR",
+  "San Antonio de Areco": "AR",
+  "San Andres de Giles": "AR",
+  Lujan: "AR",
+  "General Rodriguez": "AR",
+  Gowland: "AR",
+  Olivera: "AR",
+  "Jose Manuel Garcia": "AR",
+  "Cuartel V": "AR",
+  Canuelas: "AR",
+  Lobos: "AR",
+  Suipacha: "AR",
+  Chivilcoy: "AR",
+  "Nueve de Julio": "AR",
+  "Trenque Lauquen": "AR",
+  Pehuajo: "AR",
+  Carhue: "AR",
+  "General Acha": "AR",
+  Puelches: "AR",
+  Catriel: "AR",
+  "Choele Choel": "AR",
+  "Rio Colorado": "AR",
+  "Sierra Grande": "AR",
+  "Puerto Madryn": "AR",
+  Dolavon: "AR",
+  "Las Plumas": "AR",
+  "Los Altares": "AR",
+  "Paso de Indios": "AR",
+  Tecka: "AR",
+  "Gobernador Costa": "AR",
+  Sarmiento: "AR",
+  "Rada Tilly": "AR",
+  "Pico Truncado": "AR",
+  "Las Heras": "AR",
+  "Perito Moreno": "AR",
+  "Bajo Caracoles": "AR",
+  "Gobernador Gregores": "AR",
+  "Tres Lagos": "AR",
+  Esperanza: "AR",
+  "El Turbio": "AR",
+  "Rio Turbio": "AR",
+  "28 de Noviembre": "AR",
+  Tolhuin: "AR",
+  "San Sebastian": "AR",
+  "Cerro Sombrero": "CL",
+  "Punta Delgada": "CL",
+  "Villa Tehuelches": "CL",
+  "Puerto Sara": "CL",
+  "Puerto Natales": "CL",
+  "Cerro Castillo": "CL",
+  "Villa Cerro Castillo": "CL",
+  "El Bolson": "AR",
+  Esquel: "AR",
+  Leleque: "AR",
+  "Villa La Angostura": "AR",
+  "Piedra del Aguila": "AR",
+  Zapala: "AR",
+  Porvenir: "CL",
+  "Primera Angostura": "CL"
 });
 
 const KNOWN_BORDER_CROSSINGS = [
@@ -815,6 +962,83 @@ async function searchCities(query) {
   return data;
 }
 
+function normalizeAutocompleteEntry(entry) {
+  if (!entry) return null;
+  const name = (entry.name || entry.label || entry.display_name?.split(",")?.[0] || "").trim();
+  const lat = Number(entry.lat);
+  const lon = Number(entry.lon ?? entry.lng);
+  if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return {
+    lat: String(lat),
+    lon: String(lon),
+    address: {
+      city: name,
+      town: name,
+      municipality: name,
+      village: name,
+      country: entry.country || ""
+    },
+    display_name: `${name}${entry.country ? `, ${entry.country}` : ""}`
+  };
+}
+
+const RECENT_SEARCHES_LIMIT = 6;
+const RECENT_SEARCHES_GLOBAL_KEY = "recentSearches:global";
+
+async function getRecentSearchesKey(kind) {
+  const email = await getCurrentUserEmail();
+  return `recentSearches:${kind}:${email}`;
+}
+
+async function getRecentSearchStorageKeys(kind) {
+  const userKey = await getRecentSearchesKey(kind);
+  return [userKey, RECENT_SEARCHES_GLOBAL_KEY].filter(Boolean);
+}
+
+function mergeRecentSearches(items = []) {
+  const seen = new Set();
+  const merged = [];
+  for (const item of items) {
+    const normalized = normalizeAutocompleteEntry(item);
+    if (!normalized) continue;
+    const key = `${normalized.address.city}::${normalized.lat}::${normalized.lon}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(normalized);
+    if (merged.length >= RECENT_SEARCHES_LIMIT) break;
+  }
+  return merged;
+}
+
+async function readRecentSearches(kind) {
+  try {
+    const keys = await getRecentSearchStorageKeys(kind);
+    const collected = [];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) collected.push(...parsed);
+    }
+    return mergeRecentSearches(collected);
+  } catch (_error) {
+    return [];
+  }
+}
+
+async function rememberRecentSearch(kind, picked) {
+  const normalized = normalizeAutocompleteEntry(picked);
+  if (!normalized) return;
+  try {
+    const keys = await getRecentSearchStorageKeys(kind);
+    const current = await readRecentSearches(kind);
+    const next = mergeRecentSearches([normalized, ...current]);
+    for (const key of keys) {
+      localStorage.setItem(key, JSON.stringify(next));
+    }
+  } catch (_error) {}
+}
+
 function renderAutocomplete(listEl, items, onPick) {
   if (!items.length) {
     listEl.hidden = true;
@@ -835,31 +1059,61 @@ function renderAutocomplete(listEl, items, onPick) {
     const picked = {
       name: row.dataset.label,
       lat: Number(row.dataset.lat),
-      lon: Number(row.dataset.lon)
+      lon: Number(row.dataset.lon),
+      country: row.dataset.country || ""
     };
     onPick(picked);
     listEl.hidden = true;
   };
 }
 
-function bindAutocomplete(inputEl, listEl, assignFn) {
-  const runSearch = debounce(async () => {
-    const items = await searchCities(inputEl.value);
-    renderAutocomplete(listEl, items, (picked) => {
+async function showAutocompleteSuggestions(inputEl, listEl, kind, assignFn, onSelected) {
+  const query = inputEl.value.trim();
+  if (!query || query.length < 2) {
+    const recent = await readRecentSearches(kind);
+    renderAutocomplete(listEl, recent, async (picked) => {
       inputEl.value = picked.name;
       assignFn(picked);
+      await rememberRecentSearch(kind, picked);
+      if (typeof onSelected === "function") onSelected(picked);
+    });
+    return;
+  }
+  const items = await searchCities(query);
+  renderAutocomplete(listEl, items, async (picked) => {
+    inputEl.value = picked.name;
+    assignFn(picked);
+    await rememberRecentSearch(kind, picked);
+    if (typeof onSelected === "function") onSelected(picked);
+  });
+}
+
+function bindAutocomplete(inputEl, listEl, kind, assignFn) {
+  let hasTyped = false;
+  const runSearch = debounce(async () => {
+    await showAutocompleteSuggestions(inputEl, listEl, kind, assignFn, () => {
+      hasTyped = false;
     });
   }, 300);
 
   inputEl.addEventListener("input", () => {
+    hasTyped = true;
     assignFn(null);
     runSearch();
   });
-  inputEl.addEventListener("focus", () => runSearch());
+  inputEl.addEventListener("focus", async () => {
+    if (!hasTyped) {
+      await showAutocompleteSuggestions(inputEl, listEl, kind, assignFn, () => {
+        hasTyped = false;
+      });
+      return;
+    }
+    runSearch();
+  });
   inputEl.addEventListener("blur", () => setTimeout(() => (listEl.hidden = true), 150));
 }
 
-bindAutocomplete(originInput, originList, (value) => (selectedOrigin = value));
+bindAutocomplete(originInput, originList, "origin", (value) => (selectedOrigin = value));
 [
   [dest1Input, dest1List, 0],
   [dest2Input, dest2List, 1],
@@ -867,7 +1121,7 @@ bindAutocomplete(originInput, originList, (value) => (selectedOrigin = value));
   [dest4Input, dest4List, 3],
   [dest5Input, dest5List, 4]
 ].forEach(([inputEl, listEl, idx]) => {
-  bindAutocomplete(inputEl, listEl, (value) => (selectedDestinations[idx] = value));
+  bindAutocomplete(inputEl, listEl, "destination", (value) => (selectedDestinations[idx] = value));
 });
 
 if (dayLimitModeEl) {
@@ -952,6 +1206,14 @@ async function geocodeIfNeeded(inputValue) {
   return fallbackByFuzzy(query);
 }
 
+async function rememberWaypointSearches(points = []) {
+  for (const point of points) {
+    if (point?.name) {
+      await rememberRecentSearch("destination", point);
+    }
+  }
+}
+
 async function applySavedRoute(route) {
   if (!route || !route.origin) return;
   warnEl.textContent = "Carregando rota salva...";
@@ -982,6 +1244,8 @@ async function applySavedRoute(route) {
     const value = destinationInputs[i].value.trim();
     selectedDestinations[i] = value ? await geocodeIfNeeded(value) : null;
   }
+  await rememberRecentSearch("origin", selectedOrigin);
+  await rememberWaypointSearches(selectedDestinations.filter(Boolean));
 
   pendingOpenRouteContext = "saved";
   await generatePlan();
@@ -1075,8 +1339,10 @@ function nearestCityByCoord(lat, lon) {
       nearest = city;
     }
   }
-  return nearest;
+  return nearest ? { ...nearest, distanceKm: min } : null;
 }
+
+const NEAR_CITY_LABEL_MAX_KM = 35;
 
 function metaFromCoordFast(lat, lon) {
   const nearest = nearestCityByCoord(lat, lon);
@@ -1084,9 +1350,19 @@ function metaFromCoordFast(lat, lon) {
   const countryCode = CITY_COUNTRY_BY_NAME[nearest.name] || "";
   return {
     label: nearest.name,
+    nearestKm: Number(nearest.distanceKm || 0),
     countryCode,
     country: COUNTRY_NAMES[countryCode] || ""
   };
+}
+
+async function resolveStopMeta(lat, lon) {
+  const quickMeta = metaFromCoordFast(lat, lon);
+  if (Number(quickMeta.nearestKm || 0) <= NEAR_CITY_LABEL_MAX_KM) {
+    return quickMeta;
+  }
+  const remoteMeta = await withTimeout(() => reverseGeocodeMeta(lat, lon), 1200);
+  return remoteMeta?.label ? remoteMeta : quickMeta;
 }
 
 function buildCumulativeDistances(coords) {
@@ -1116,6 +1392,103 @@ function pointInfoAtTarget(coords, cumulative, target) {
   return { index: last, coord: coords[last] };
 }
 
+function buildRouteCityAnchors(coords, cumulative, maxDistanceKm = 45) {
+  if (!Array.isArray(coords) || !coords.length) return [];
+  const anchors = [];
+  for (const city of CITY_REFERENCE) {
+    let bestIdx = 0;
+    let minDist = Number.POSITIVE_INFINITY;
+    for (let idx = 0; idx < coords.length; idx += 1) {
+      const dist = haversineKm(coords[idx], [city.lat, city.lng]);
+      if (dist < minDist) {
+        minDist = dist;
+        bestIdx = idx;
+      }
+    }
+    if (minDist <= maxDistanceKm) {
+      anchors.push({
+        name: city.name,
+        lat: city.lat,
+        lon: city.lng,
+        index: bestIdx,
+        metric: cumulative[bestIdx] || 0,
+        distToRouteKm: minDist
+      });
+    }
+  }
+  anchors.sort((a, b) => a.metric - b.metric || a.distToRouteKm - b.distToRouteKm);
+  return anchors;
+}
+
+function isMetricForced(metric, forcedMetrics = [], epsilon = 0.001) {
+  return forcedMetrics.some((value) => Math.abs(value - metric) < epsilon);
+}
+
+function pickCityAnchorBeforeTarget(anchors, prevMetric, targetMetric, minAdvance, maxBacktrack) {
+  const minAllowedMetric = Math.max(prevMetric + minAdvance, targetMetric - Math.max(0, maxBacktrack || 0));
+  let best = null;
+  for (const anchor of anchors) {
+    if (anchor.metric < minAllowedMetric) continue;
+    if (anchor.metric > targetMetric) continue;
+    if (!best || anchor.metric > best.metric || (Math.abs(anchor.metric - best.metric) < 0.001 && anchor.distToRouteKm < best.distToRouteKm)) {
+      best = anchor;
+    }
+  }
+  return best;
+}
+
+function findWaypointSegmentForIndex(index, segmentRanges = []) {
+  if (!segmentRanges.length) return null;
+  for (const range of segmentRanges) {
+    if (index >= range.startIndex && index <= range.endIndex) return range;
+  }
+  return segmentRanges[segmentRanges.length - 1] || null;
+}
+
+function normalizeRoadCandidate(step = {}) {
+  const raw = [step.ref, step.name, step.destinations]
+    .filter((value) => typeof value === "string" && value.trim())
+    .map((value) => value.trim())[0];
+  if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  if (
+    lowered === "road" ||
+    lowered === "unnamed road" ||
+    lowered === "sem nome" ||
+    lowered.includes("trecho") ||
+    lowered.includes("->") ||
+    lowered.includes("parada")
+  ) {
+    return "";
+  }
+  return raw;
+}
+
+function pickDominantRoadName(route = {}) {
+  const weights = new Map();
+  for (const leg of route.legs || []) {
+    for (const step of leg.steps || []) {
+      const name = normalizeRoadCandidate(step);
+      if (!name) continue;
+      const weight = Number(step.distance) > 0 ? Number(step.distance) : 1;
+      weights.set(name, (weights.get(name) || 0) + weight);
+    }
+  }
+  if (!weights.size) return "";
+  return [...weights.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function buildStopLabel(meta, forcedLabel, segment, fallbackLabel) {
+  if (forcedLabel) return forcedLabel;
+  const cityLabel = (meta?.label || fallbackLabel || "").trim();
+  const roadLabel = (segment?.roadName || "").trim();
+  const hasRealRoadLabel = roadLabel && !/trecho|->/i.test(roadLabel);
+
+  // Preferimos: cidade + ruta real (quando existir).
+  if (cityLabel && hasRealRoadLabel) return `${cityLabel} • ${roadLabel}`;
+  return cityLabel || fallbackLabel;
+}
+
 function buildSegmentGoogleMapsUrl(startCoord, endCoord) {
   if (
     Array.isArray(startCoord) &&
@@ -1137,7 +1510,7 @@ function renderDaysHtmlEnhanced(days = [], style = "fast", limitMode = "km") {
         ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
         : "";
       const mapsLinkHtml = day.googleMapsUrl
-        ? `<div class="tiny" style="margin-top:4px"><a href="${day.googleMapsUrl}" target="_blank" rel="noreferrer" style="color:#ffffff;text-decoration:underline">Ver no Google Maps</a></div>`
+        ? `<div class="tiny" style="margin-top:4px"><a href="${day.googleMapsUrl}" target="_blank" rel="noreferrer" style="color:#ffffff;text-decoration:underline">Ver rota no Google Maps</a></div>`
         : "";
       return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
     })
@@ -1198,11 +1571,17 @@ async function reverseGeocodeMeta(lat, lon) {
   const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
   if (reverseGeocodeCache.has(key)) return reverseGeocodeCache.get(key);
   const quickMeta = metaFromCoordFast(lat, lon);
-  reverseGeocodeCache.set(key, quickMeta);
-  return quickMeta;
+  if (Number(quickMeta.nearestKm || 0) <= 20) {
+    reverseGeocodeCache.set(key, quickMeta);
+    return quickMeta;
+  }
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`;
-    const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
+    const response = await withTimeout(
+      () => fetch(url, { headers: { "Accept-Language": "pt-BR" } }),
+      900
+    );
+    if (!response) throw new Error("reverse timeout");
     if (!response.ok) throw new Error("reverse failed");
     const data = await response.json();
     const label =
@@ -1216,7 +1595,8 @@ async function reverseGeocodeMeta(lat, lon) {
     const meta = {
       label,
       country: data.address?.country || "",
-      countryCode: data.address?.country_code?.toUpperCase() || ""
+      countryCode: data.address?.country_code?.toUpperCase() || "",
+      nearestKm: 0
     };
     reverseGeocodeCache.set(key, meta);
     return meta;
@@ -1230,7 +1610,7 @@ async function reverseGeocodeMeta(lat, lon) {
         nearest = city.name;
       }
     }
-    const fallback = { label: nearest, country: "", countryCode: "" };
+    const fallback = { label: nearest, country: "", countryCode: "", nearestKm: Number(min || 0) };
     reverseGeocodeCache.set(key, fallback);
     return fallback;
   }
@@ -1367,19 +1747,28 @@ async function fetchDrivingRoute(from, to) {
     "https://routing.openstreetmap.de/routed-car"
   ];
   let lastError = null;
+  const queryVariants = [
+    "overview=full&geometries=geojson&steps=false",
+    "overview=full&geometries=geojson&steps=true&annotations=distance,duration",
+    "overview=simplified&geometries=geojson&steps=false"
+  ];
   for (const base of routeServers) {
-    const osrmUrl = `${base}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true&annotations=distance,duration`;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(osrmUrl, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      if (!data.routes?.length) throw new Error("Sem rota");
-      return data.routes[0];
-    } catch (error) {
-      lastError = error;
+    for (const query of queryVariants) {
+      const osrmUrl = `${base}/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?${query}`;
+      let timer = null;
+      try {
+        const controller = new AbortController();
+        timer = setTimeout(() => controller.abort(), 35000);
+        const response = await fetch(osrmUrl, { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data.routes?.length) throw new Error("Sem rota");
+        return data.routes[0];
+      } catch (error) {
+        lastError = error;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     }
   }
   throw lastError || new Error("Rota indisponível");
@@ -1825,6 +2214,7 @@ async function generatePlan() {
   warnEl.textContent = "";
   if (planActionsEl) planActionsEl.style.display = "none";
   if (!selectedOrigin) selectedOrigin = await geocodeIfNeeded(originInput.value);
+  if (selectedOrigin) await rememberRecentSearch("origin", selectedOrigin);
 
   const destinationInputs = [dest1Input, dest2Input, dest3Input, dest4Input, dest5Input];
   const destinations = [];
@@ -1834,6 +2224,7 @@ async function generatePlan() {
     }
     if (selectedDestinations[i]) destinations.push(selectedDestinations[i]);
   }
+  await rememberWaypointSearches(destinations);
 
   if (!selectedOrigin || !destinations.length) {
     warnEl.textContent = "Informe origem e pelo menos um destino válido para calcular a rota.";
@@ -1848,13 +2239,28 @@ async function generatePlan() {
     let fullDuration = 0;
     const segmentDistanceStepsKm = [];
     const segmentDurationStepsSec = [];
+    const forcedBoundaryIndices = [0];
+    const waypointNameByRouteIndex = new Map([[0, waypoints[0].name]]);
+    const segmentRanges = [];
 
     for (let i = 0; i < waypoints.length - 1; i += 1) {
       stage = `rota entre ${waypoints[i].name} e ${waypoints[i + 1].name}`;
       const segment = await fetchDrivingRoute(waypoints[i], waypoints[i + 1]);
       const segmentCoords = segment.geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+      const segmentRoadName = pickDominantRoadName(segment);
+      const startIndex = routeCoords.length ? routeCoords.length - 1 : 0;
       if (!routeCoords.length) routeCoords = segmentCoords;
       else routeCoords = [...routeCoords, ...segmentCoords.slice(1)];
+      const endIndex = routeCoords.length - 1;
+      segmentRanges.push({
+        startIndex,
+        endIndex,
+        fromName: waypoints[i].name,
+        toName: waypoints[i + 1].name,
+        roadName: segmentRoadName
+      });
+      forcedBoundaryIndices.push(routeCoords.length - 1);
+      waypointNameByRouteIndex.set(routeCoords.length - 1, waypoints[i + 1].name);
       fullDuration += segment.duration;
 
       const annDistanceM = [];
@@ -1910,25 +2316,56 @@ async function generatePlan() {
     const activeCumulative = limitMode === "hours" ? cumulativeHours : cumulativeKm;
     const totalMetric = activeCumulative[activeCumulative.length - 1] || 0;
     const tolerance = limitMode === "hours" ? 0.75 : 50;
-    const boundaries = [0];
-    let target = dayLimit;
-    while (target < totalMetric - tolerance && boundaries.length < 120) {
-      boundaries.push(target);
-      target += dayLimit;
+    const forcedBoundaryMetrics = forcedBoundaryIndices
+      .map((idx) => activeCumulative[Math.max(0, Math.min(idx, activeCumulative.length - 1))] || 0)
+      .filter((value) => Number.isFinite(value));
+
+    const minGap = limitMode === "hours" ? 0.08 : 2;
+    const waypointBoundaries = [...forcedBoundaryMetrics, 0, totalMetric]
+      .map((value) => Math.max(0, Math.min(totalMetric, value)))
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b)
+      .reduce((list, value) => {
+        if (!list.length || Math.abs(value - list[list.length - 1]) > minGap) list.push(value);
+        return list;
+      }, []);
+
+    const boundaries = [];
+    for (let i = 0; i < waypointBoundaries.length - 1; i += 1) {
+      const intervalStart = waypointBoundaries[i];
+      const intervalEnd = waypointBoundaries[i + 1];
+      if (!boundaries.length || Math.abs(intervalStart - boundaries[boundaries.length - 1]) > minGap) {
+        boundaries.push(intervalStart);
+      }
+
+      // Each user destination is a real stop/stay, so the next daily target restarts from there.
+      let target = intervalStart + dayLimit;
+      while (target < intervalEnd - tolerance && boundaries.length < 140) {
+        if (target - intervalStart > minGap && intervalEnd - target > minGap) {
+          boundaries.push(target);
+        }
+        target += dayLimit;
+      }
+
+      if (Math.abs(intervalEnd - boundaries[boundaries.length - 1]) > minGap) {
+        boundaries.push(intervalEnd);
+      }
     }
-    boundaries.push(totalMetric);
+    boundaries.sort((a, b) => a - b);
+    if (!boundaries.length || boundaries[0] > minGap) boundaries.unshift(0);
+    if (Math.abs(boundaries[boundaries.length - 1] - totalMetric) > minGap) boundaries.push(totalMetric);
 
     stage = "pontos diários";
     const boundaryPoints = boundaries.map((targetValue) => pointInfoAtTarget(routeCoords, activeCumulative, targetValue));
-    stage = "geocodificação dos pontos";
-    const dayMetas = await Promise.all(
-      boundaryPoints.map(async (point, index) => {
-        const meta = await reverseGeocodeMeta(point.coord[0], point.coord[1]);
-        if (index === 0) return { ...meta, label: selectedOrigin.name };
-        if (index === boundaryPoints.length - 1) return { ...meta, label: finalDestination.name };
-        return meta;
-      })
-    );
+    stage = "processamento dos pontos";
+    const dayMetas = await Promise.all(boundaryPoints.map(async (point, index) => {
+      const meta = await resolveStopMeta(point.coord[0], point.coord[1]);
+      const forcedLabel = waypointNameByRouteIndex.get(point.index);
+      if (forcedLabel) return { ...meta, label: forcedLabel };
+      if (index === 0) return { ...meta, label: selectedOrigin.name };
+      if (index === boundaryPoints.length - 1) return { ...meta, label: finalDestination.name };
+      return meta;
+    }));
 
     stage = "montagem dos dias";
     const days = [];
@@ -1941,6 +2378,12 @@ async function generatePlan() {
       const duration = (cumulativeHours[currIdx] || 0) - (cumulativeHours[prevIdx] || 0);
       const fromMeta = dayMetas[i - 1];
       const toMeta = dayMetas[i];
+      const fromForcedLabel = waypointNameByRouteIndex.get(prevIdx);
+      const toForcedLabel = waypointNameByRouteIndex.get(currIdx);
+      const fromSeg = findWaypointSegmentForIndex(prevIdx, segmentRanges);
+      const toSeg = findWaypointSegmentForIndex(currIdx, segmentRanges);
+      const fromLabel = buildStopLabel(fromMeta, fromForcedLabel, fromSeg, "Origem");
+      const toLabel = buildStopLabel(toMeta, toForcedLabel, toSeg, "Parada");
       const countryChangedOnEnds = Boolean(
         fromMeta?.countryCode &&
         toMeta?.countryCode &&
@@ -1965,8 +2408,8 @@ async function generatePlan() {
       }
       days.push({
         day: i,
-        from: fromMeta?.label || "Origem",
-        to: toMeta?.label || "Parada",
+        from: fromLabel,
+        to: toLabel,
         km: Math.round(dist),
         hours: duration.toFixed(1),
         startCoord,
