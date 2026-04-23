@@ -118,7 +118,7 @@
           return;
         }
         await window.AppAuth.signUp(emailEl.value.trim(), passwordEl.value);
-        showMessage("Conta criada. Verifique seu e-mail para confirmar e depois faça login.", "ok");
+        showMessage("Conta criada. Verifique seu e-mail e depois aguarde aprovação para liberar o acesso.", "ok");
       } catch (error) {
         showMessage(error.message || "Não foi possível criar a conta.", "err");
       }

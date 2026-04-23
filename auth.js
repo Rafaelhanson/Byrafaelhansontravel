@@ -1,6 +1,8 @@
 (function attachAuth(windowObj) {
   const config = windowObj.APP_AUTH_CONFIG || {};
   const loginPath = config.loginPath || "./login.html";
+  const approvedUsersTable = config.approvedUsersTable || "approved_users";
+  const signupLogTable = config.signupLogTable || "signup_notifications";
 
   function hasSupabaseKeys() {
     return Boolean(config.supabaseUrl && config.supabaseAnonKey);
@@ -8,6 +10,10 @@
 
   function isLoginPage() {
     return window.location.pathname.endsWith("login.html");
+  }
+
+  function normalizeEmail(email) {
+    return String(email || "").trim().toLowerCase();
   }
 
   function withNext(path) {
@@ -41,6 +47,63 @@
 
   const client = createClient();
 
+  function isEmailInWhitelist(email) {
+    const normalized = normalizeEmail(email);
+    const list = Array.isArray(config.approvedEmails) ? config.approvedEmails : [];
+    return list.map(normalizeEmail).includes(normalized);
+  }
+
+  async function isUserApproved(email) {
+    if (!config.requireApproval) return true;
+    if (isEmailInWhitelist(email)) return true;
+    if (!client) return false;
+
+    try {
+      const normalized = normalizeEmail(email);
+      const { data, error } = await client
+        .from(approvedUsersTable)
+        .select("email, active")
+        .eq("email", normalized)
+        .maybeSingle();
+
+      if (error) {
+        if (config.failClosedApproval) return false;
+        return true;
+      }
+      if (!data) return false;
+      return data.active !== false;
+    } catch (_err) {
+      return !config.failClosedApproval;
+    }
+  }
+
+  async function notifyNewSignup(email, userId) {
+    const payload = {
+      email: normalizeEmail(email),
+      user_id: userId || null,
+      created_at: new Date().toISOString(),
+      source: "web"
+    };
+
+    if (client && signupLogTable) {
+      try {
+        await client.from(signupLogTable).insert(payload);
+      } catch (_err) {
+      }
+    }
+
+    if (config.signupWebhookUrl) {
+      try {
+        await fetch(config.signupWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } catch (_err) {
+      }
+    }
+  }
+
   async function getSession() {
     if (!client) return null;
     const { data } = await client.auth.getSession();
@@ -60,20 +123,35 @@
       redirectToLogin();
       return false;
     }
+    const approved = await isUserApproved(session.user?.email || "");
+    if (!approved) {
+      await signOut();
+      alert("Sua conta ainda não foi liberada. Aguarde aprovação do administrador.");
+      return false;
+    }
     return true;
   }
 
   async function signIn(email, password) {
     if (!client) throw new Error("Supabase não configurado.");
-    const { error } = await client.auth.signInWithPassword({ email, password });
+    const normalizedEmail = normalizeEmail(email);
+    const { error } = await client.auth.signInWithPassword({ email: normalizedEmail, password });
     if (error) throw error;
+
+    const approved = await isUserApproved(normalizedEmail);
+    if (!approved) {
+      await client.auth.signOut();
+      throw new Error("Sua conta ainda não foi liberada. Aguarde aprovação do administrador.");
+    }
     redirectAfterLogin();
   }
 
   async function signUp(email, password) {
     if (!client) throw new Error("Supabase não configurado.");
-    const { error } = await client.auth.signUp({ email, password });
+    const normalizedEmail = normalizeEmail(email);
+    const { data, error } = await client.auth.signUp({ email: normalizedEmail, password });
     if (error) throw error;
+    await notifyNewSignup(normalizedEmail, data?.user?.id || null);
   }
 
   async function signOut() {
@@ -131,6 +209,7 @@
     signOut,
     bindLogoutButton,
     bindUserEmailChip,
-    redirectAfterLogin
+    redirectAfterLogin,
+    isUserApproved
   };
 })(window);

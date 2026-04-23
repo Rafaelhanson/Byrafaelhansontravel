@@ -3,5 +3,23 @@ window.APP_AUTH_CONFIG = {
   loginPath: "./login.html",
   redirectAfterLogin: "./index.html",
   supabaseUrl: "https://dxdmqarllnljhhddyxsz.supabase.co",
-  supabaseAnonKey: "sb_publishable_D5e4vSZGg5R-pO1AB819tg_aGEY1ycc"
+  supabaseAnonKey: "sb_publishable_D5e4vSZGg5R-pO1AB819tg_aGEY1ycc",
+  // Opção 2: acesso apenas para usuários aprovados (produto pago)
+  // Se true, o login só entra para quem estiver na whitelist abaixo
+  // ou na tabela do Supabase configurada em approvedUsersTable.
+  requireApproval: true,
+  // Whitelist rápida para testes (adicione/remova emails aqui).
+  approvedEmails: [
+    "rafaelhansonfotografo@gmail.com"
+  ],
+  // Opcional: tabela com usuários aprovados no Supabase.
+  // Estrutura esperada: email (text), active (boolean).
+  approvedUsersTable: "approved_users",
+  // Se true, falha fechado quando tabela não existe/erro de leitura.
+  failClosedApproval: false,
+  // Opcional: webhook para notificar novo cadastro (Telegram, Make, Zapier, etc).
+  // Exemplo: "https://hooks.zapier.com/hooks/catch/xxxx/yyyy"
+  signupWebhookUrl: "",
+  // Opcional: tabela para registrar eventos de cadastro no Supabase.
+  signupLogTable: "signup_notifications"
 };
