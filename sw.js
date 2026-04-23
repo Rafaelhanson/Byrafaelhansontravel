@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v8";
+const CACHE_NAME = "by-rafael-hanson-v9";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -46,6 +46,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
+  const requestUrl = new URL(event.request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  if (!isSameOrigin) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -58,7 +65,12 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
           return response;
         })
-        .catch(() => caches.match("./index.html"));
+        .catch(() => {
+          if (event.request.mode === "navigate") {
+            return caches.match("./index.html");
+          }
+          return Response.error();
+        });
     })
   );
 });

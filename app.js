@@ -391,12 +391,41 @@ const communityPhotoEl = document.getElementById("communityPhoto");
 const communityRemovePhotoEl = document.getElementById("communityRemovePhoto");
 const communityCancelBtn = document.getElementById("communityCancelBtn");
 const communitySaveBtn = document.getElementById("communitySaveBtn");
+const tripFormEl = document.getElementById("tripForm");
+const tripNameEl = document.getElementById("tripName");
+const tripStartDateEl = document.getElementById("tripStartDate");
+const tripDurationEl = document.getElementById("tripDuration");
+const tripDescriptionEl = document.getElementById("tripDescription");
+const expenseFormEl = document.getElementById("expenseForm");
+const expenseEntryPanelEl = document.getElementById("expenseEntryPanel");
+const expenseActiveTripNameEl = document.getElementById("expenseActiveTripName");
+const expenseNoTripHintEl = document.getElementById("expenseNoTripHint");
+const expenseCategoryEl = document.getElementById("expenseCategory");
+const expensePaymentEl = document.getElementById("expensePayment");
+const expenseAmountEl = document.getElementById("expenseAmount");
+const expenseCurrencyEl = document.getElementById("expenseCurrency");
+const expenseRateEl = document.getElementById("expenseRate");
+const expenseDateEl = document.getElementById("expenseDate");
+const expenseDescriptionEl = document.getElementById("expenseDescription");
+const expenseSelectedTripTitleEl = document.getElementById("expenseSelectedTripTitle");
+const expenseTotalBrlEl = document.getElementById("expenseTotalBrl");
+const expensePieEl = document.getElementById("expensePie");
+const expenseLegendEl = document.getElementById("expenseLegend");
+const tripsListEl = document.getElementById("tripsList");
+const tripsEmptyEl = document.getElementById("tripsEmpty");
+const expensesListEl = document.getElementById("expensesList");
+const expensesEmptyEl = document.getElementById("expensesEmpty");
+const clearExpenseSelectionBtn = document.getElementById("clearExpenseSelectionBtn");
+const expenseTripTitleEl = document.getElementById("expenseTripTitle");
+const expenseTripMetaEl = document.getElementById("expenseTripMeta");
+const expenseTripBackBtn = document.getElementById("expenseTripBackBtn");
 
 let selectedOrigin = null;
 const selectedDestinations = [null, null, null, null, null];
 let routeCoords = [];
 let routeLayer = null;
 let routeMarkers = [];
+let cityAnchorsLayer = null;
 let poisLayer = null;
 let dayStopsLayer = null;
 let borderCrossingsLayer = null;
@@ -405,6 +434,9 @@ let selectedCats = new Set(["fuel_station", "hotel", "camping"]);
 let maxPoiDistance = 999;
 let currentPlanSnapshot = null;
 let routesStorageKeyCache = null;
+let expensesStorageKeyCache = null;
+let travelExpenseTrips = [];
+let selectedExpenseTripId = null;
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
@@ -417,6 +449,20 @@ let myCollaborationsCache = [];
 let routeOpenContext = "planner";
 let pendingOpenRouteContext = null;
 let mapBackTargetHash = null;
+
+const ROUTE_CITY_MARKER_NAMES = new Set([
+  "Erechim", "Passo Fundo", "Santa Maria", "Uruguaiana", "Paso de los Libres", "Itaqui", "Sao Borja",
+  "Mercedes", "Curuzu Cuatia", "Goya", "Monte Caseros", "Chajari", "Federal", "Villaguay", "Parana",
+  "Victoria", "Colon", "Concordia", "Gualeguaychu", "Ceibas", "Zarate", "Campana", "Lujan",
+  "Buenos Aires", "Bahia Blanca", "Viedma", "San Antonio Oeste", "Sierra Grande", "Puerto Madryn",
+  "Trelew", "Rawson", "Dolavon", "Las Plumas", "Los Altares", "Paso de Indios", "Tecka",
+  "Gobernador Costa", "Comodoro Rivadavia", "Rada Tilly", "Caleta Olivia", "Puerto San Julian",
+  "Rio Gallegos", "Rio Grande", "Tolhuin", "Ushuaia", "San Sebastian", "Cerro Sombrero",
+  "Punta Delgada", "Puerto Natales", "Cerro Castillo", "El Calafate", "El Chalten", "Tres Lagos",
+  "Gobernador Gregores", "Bajo Caracoles", "Perito Moreno", "Sarmiento", "Esquel", "El Bolson",
+  "Bariloche", "Villa La Angostura", "Piedra del Aguila", "Zapala", "Neuquen", "General Roca",
+  "Cipolletti", "Santa Rosa", "General Acha"
+].map(normalizeName));
 
 const map = L.map("map").setView([-30, -58], 4);
 const mapTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
@@ -439,6 +485,39 @@ const COMMUNITY_CATEGORY_COLORS = {
   viewpoint: "#ea580c",
   alert: "#b42318",
   support: "#0f766e"
+};
+
+const EXPENSE_CATEGORY_LABELS = {
+  fuel: "Combustível",
+  food: "Alimentação",
+  lodging: "Hospedagem",
+  tickets: "Passeios/ingressos",
+  maintenance: "Manutenção",
+  extras: "Gastos extras"
+};
+
+const EXPENSE_CATEGORY_COLORS = {
+  fuel: "#f97316",
+  food: "#86d1a5",
+  lodging: "#38bdf8",
+  tickets: "#facc15",
+  maintenance: "#fb7185",
+  extras: "#c084fc"
+};
+
+const EXPENSE_PAYMENT_LABELS = {
+  credit: "Cartão de crédito",
+  debit: "Cartão de débito",
+  cash: "Dinheiro",
+  pix: "Pix/transferência"
+};
+
+const CURRENCY_DEFAULT_RATES = {
+  BRL: 1,
+  ARS: 0.006,
+  CLP: 0.006,
+  USD: 5.2,
+  UYU: 0.13
 };
 
 function initSupabaseClient() {
@@ -537,6 +616,8 @@ function setSectionVisibility(sectionId) {
     home: document.getElementById("home"),
     planner: document.getElementById("planner"),
     "my-routes": document.getElementById("my-routes"),
+    expenses: document.getElementById("expenses"),
+    "expense-trip": document.getElementById("expense-trip"),
     "my-collabs": document.getElementById("my-collabs"),
     "collab-detail": document.getElementById("collab-detail"),
     mapa: document.getElementById("mapa"),
@@ -560,6 +641,11 @@ function updateActiveNav(hash) {
   const normalized = hash || "#home";
   document.querySelectorAll(".nav a").forEach((link) => {
     const href = link.getAttribute("href") || "";
+    const isExpensesContext = normalized === "#expenses" || normalized.startsWith("#expense-trip");
+    if (href === "#expenses") {
+      link.classList.toggle("active", isExpensesContext);
+      return;
+    }
     link.classList.toggle("active", href === normalized);
   });
   if (quickMapBtn) {
@@ -662,9 +748,32 @@ function handleSectionVisibilityByHash(hash) {
     });
     return;
   }
+  if (normalized.startsWith("#expense-trip")) {
+    exitRouteFocusMode();
+    let tripId = "";
+    if (normalized.startsWith("#expense-trip/")) {
+      tripId = decodeURIComponent(normalized.replace("#expense-trip/", "").trim());
+    }
+    if (tripId) {
+      selectedExpenseTripId = tripId;
+    }
+    if (!getSelectedExpenseTrip()) {
+      selectedExpenseTripId = null;
+      setSectionVisibility("expenses");
+      setCollabDetailVisibility(false);
+      updateActiveNav("#expenses");
+      renderTravelExpenses();
+      return;
+    }
+    setSectionVisibility("expense-trip");
+    setCollabDetailVisibility(false);
+    updateActiveNav("#expense-trip");
+    renderTravelExpenses();
+    return;
+  }
 
   const target = normalized.replace("#", "");
-  const allowedTargets = new Set(["home", "planner", "my-routes", "my-collabs", "mapa", "destinos", "route"]);
+  const allowedTargets = new Set(["home", "planner", "my-routes", "expenses", "expense-trip", "my-collabs", "mapa", "destinos", "route"]);
   const sectionId = allowedTargets.has(target) ? target : "home";
   if (sectionId === "mapa") revealMapSection();
   if (sectionId === "planner" && normalized !== "#route") {
@@ -709,6 +818,10 @@ function clearRouteLayers() {
   }
   routeMarkers.forEach((marker) => map.removeLayer(marker));
   routeMarkers = [];
+  if (cityAnchorsLayer) {
+    map.removeLayer(cityAnchorsLayer);
+    cityAnchorsLayer = null;
+  }
   if (dayStopsLayer) {
     map.removeLayer(dayStopsLayer);
     dayStopsLayer = null;
@@ -824,6 +937,194 @@ async function readSavedRoutes() {
 async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
   localStorage.setItem(key, JSON.stringify(routes));
+}
+
+async function getExpensesStorageKey() {
+  if (expensesStorageKeyCache) return expensesStorageKeyCache;
+  let email = "guest";
+  try {
+    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
+      const session = await window.AppAuth.getSession();
+      const userEmail = session?.user?.email?.trim().toLowerCase();
+      if (userEmail) email = userEmail;
+    }
+  } catch (_error) {}
+  expensesStorageKeyCache = `travelExpenses:${email}`;
+  return expensesStorageKeyCache;
+}
+
+async function readTravelExpenses() {
+  const key = await getExpensesStorageKey();
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+}
+
+async function writeTravelExpenses(trips) {
+  const key = await getExpensesStorageKey();
+  localStorage.setItem(key, JSON.stringify(trips));
+}
+
+function formatBrl(value) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+}
+
+function formatTravelDate(value) {
+  if (!value) return "Data não informada";
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("pt-BR");
+}
+
+function calculateTripExpenseTotal(trip) {
+  return (trip?.expenses || []).reduce((sum, expense) => sum + Number(expense.brl || 0), 0);
+}
+
+function getSelectedExpenseTrip() {
+  if (!selectedExpenseTripId) return null;
+  return travelExpenseTrips.find((trip) => trip.id === selectedExpenseTripId) || null;
+}
+
+function categoryTotalsForTrip(trip) {
+  const totals = {};
+  (trip?.expenses || []).forEach((expense) => {
+    const category = expense.category || "extras";
+    totals[category] = (totals[category] || 0) + Number(expense.brl || 0);
+  });
+  return totals;
+}
+
+function setExpenseFormEnabled(enabled, selectedTrip) {
+  if (!expenseFormEl) return;
+  if (expenseEntryPanelEl) {
+    expenseEntryPanelEl.hidden = !enabled;
+  }
+  const controls = expenseFormEl.querySelectorAll("input, select, button");
+  controls.forEach((control) => {
+    if (!control) return;
+    if (control === expenseActiveTripNameEl) {
+      control.disabled = true;
+      return;
+    }
+    control.disabled = !enabled;
+  });
+  if (expenseActiveTripNameEl) {
+    expenseActiveTripNameEl.value = selectedTrip?.name || "Nenhuma viagem selecionada";
+  }
+  if (expenseNoTripHintEl) {
+    expenseNoTripHintEl.textContent = enabled
+      ? `Lançando gastos em: ${selectedTrip.name}`
+      : "Selecione uma viagem em \"Viagens cadastradas\" para começar a lançar gastos.";
+  }
+}
+
+function renderExpensePie(totals) {
+  if (!expensePieEl || !expenseLegendEl) return;
+  const entries = Object.entries(totals).filter(([, value]) => value > 0);
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  if (!total) {
+    expensePieEl.style.background = "#17362f";
+    expenseLegendEl.innerHTML = `<div class="tiny">Adicione gastos para gerar o gráfico.</div>`;
+    return;
+  }
+
+  let cursor = 0;
+  const slices = entries.map(([category, value]) => {
+    const start = cursor;
+    const angle = (value / total) * 360;
+    cursor += angle;
+    return `${EXPENSE_CATEGORY_COLORS[category] || "#86d1a5"} ${start}deg ${cursor}deg`;
+  });
+  expensePieEl.style.background = `conic-gradient(${slices.join(", ")})`;
+  expenseLegendEl.innerHTML = entries
+    .map(([category, value]) => {
+      const percent = Math.round((value / total) * 100);
+      const color = EXPENSE_CATEGORY_COLORS[category] || "#86d1a5";
+      return `<div class="expense-legend-item"><span class="expense-legend-label"><span class="expense-dot" style="background:${color}"></span>${EXPENSE_CATEGORY_LABELS[category] || category}</span><span>${formatBrl(value)} • ${percent}%</span></div>`;
+    })
+    .join("");
+}
+
+function renderTravelExpenses() {
+  if (!tripsListEl || !tripsEmptyEl) return;
+  const selectedTrip = getSelectedExpenseTrip();
+  selectedExpenseTripId = selectedTrip?.id || null;
+
+  if (expenseTripTitleEl) {
+    expenseTripTitleEl.textContent = selectedTrip ? selectedTrip.name : "Detalhes da viagem";
+  }
+  if (expenseTripMetaEl) {
+    const start = formatTravelDate(selectedTrip?.startDate || "");
+    const duration = selectedTrip?.durationDays ? `${selectedTrip.durationDays} dias` : "Duração não informada";
+    expenseTripMetaEl.textContent = selectedTrip
+      ? `${start} • ${duration} • ${selectedTrip.description || "Sem descrição."}`
+      : "Abra uma viagem em “Gastos de viagem” para começar a lançar despesas.";
+  }
+
+  tripsEmptyEl.hidden = travelExpenseTrips.length > 0;
+  tripsListEl.innerHTML = travelExpenseTrips
+    .map((trip) => {
+      const total = calculateTripExpenseTotal(trip);
+      const activeClass = trip.id === selectedExpenseTripId ? " active" : "";
+      return `
+        <article class="saved-route-item${activeClass}" data-trip-id="${trip.id}">
+          <h3 class="saved-route-title">${trip.name}</h3>
+          <div class="saved-route-meta">${formatTravelDate(trip.startDate)} • ${trip.durationDays || "-"} dias</div>
+          <div class="saved-route-meta">${trip.description || "Sem descrição."}</div>
+          <div class="expense-money">${formatBrl(total)}</div>
+          <div class="saved-route-actions">
+            <button type="button" data-action="select-trip">Abrir viagem</button>
+            <button type="button" data-action="delete-trip" class="danger" title="Excluir viagem">&#128465;</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  setExpenseFormEnabled(Boolean(selectedTrip), selectedTrip);
+
+  if (expenseSelectedTripTitleEl) expenseSelectedTripTitleEl.textContent = selectedTrip ? selectedTrip.name : "Nenhuma viagem selecionada";
+  if (expenseTotalBrlEl) expenseTotalBrlEl.textContent = formatBrl(calculateTripExpenseTotal(selectedTrip));
+  renderExpensePie(categoryTotalsForTrip(selectedTrip));
+
+  if (!expensesListEl || !expensesEmptyEl) return;
+  const expenses = selectedTrip?.expenses || [];
+  expensesEmptyEl.hidden = expenses.length > 0;
+  expensesListEl.innerHTML = expenses
+    .map((expense) => `
+      <article class="saved-route-item" data-trip-id="${selectedTrip.id}" data-expense-id="${expense.id}">
+        <h3 class="saved-route-title">${expense.description || EXPENSE_CATEGORY_LABELS[expense.category] || "Gasto"}</h3>
+        <div class="saved-route-meta">
+          <span class="expense-chip">${EXPENSE_CATEGORY_LABELS[expense.category] || expense.category}</span>
+          <span class="expense-chip">${EXPENSE_PAYMENT_LABELS[expense.payment] || expense.payment}</span>
+        </div>
+        <div class="saved-route-meta">${formatTravelDate(expense.date)} • ${Number(expense.amount || 0).toFixed(2)} ${expense.currency} • cotação ${Number(expense.rate || 1).toFixed(4)}</div>
+        <div class="expense-money">${formatBrl(expense.brl)}</div>
+        <div class="saved-route-actions">
+          <button type="button" data-action="delete-expense" class="danger" title="Excluir gasto">&#128465;</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+async function refreshTravelExpenses() {
+  travelExpenseTrips = await readTravelExpenses();
+  if (selectedExpenseTripId && !travelExpenseTrips.some((trip) => trip.id === selectedExpenseTripId)) {
+    selectedExpenseTripId = null;
+  }
+  renderTravelExpenses();
+}
+
+async function saveTravelExpenseTrips() {
+  await writeTravelExpenses(travelExpenseTrips);
+  renderTravelExpenses();
 }
 
 function renderSavedRoutes(routes = []) {
@@ -1738,7 +2039,44 @@ function drawRoute(waypoints) {
     const marker = L.marker([point.lat, point.lon]).addTo(map).bindPopup(`${label}: ${point.name}`);
     routeMarkers.push(marker);
   });
+  drawNearbyCityMarkers();
   map.fitBounds(routeLayer.getBounds(), { padding: [24, 24] });
+}
+
+function drawNearbyCityMarkers() {
+  if (cityAnchorsLayer) map.removeLayer(cityAnchorsLayer);
+  cityAnchorsLayer = L.layerGroup();
+  if (!routeCoords.length) {
+    cityAnchorsLayer.addTo(map);
+    return;
+  }
+
+  const cumulative = buildCumulativeDistances(routeCoords);
+  const anchors = buildRouteCityAnchors(routeCoords, cumulative, 32)
+    .filter((anchor) => ROUTE_CITY_MARKER_NAMES.has(normalizeName(anchor.name)))
+    .sort((a, b) => a.metric - b.metric || a.distToRouteKm - b.distToRouteKm);
+  const selectedAnchors = [];
+  const minSpacingKm = 80;
+  for (const anchor of anchors) {
+    const tooClose = selectedAnchors.some((selected) => Math.abs(selected.metric - anchor.metric) < minSpacingKm);
+    if (!tooClose) selectedAnchors.push(anchor);
+    if (selectedAnchors.length >= 36) break;
+  }
+
+  selectedAnchors.forEach((city) => {
+    const marker = L.circleMarker([city.lat, city.lon], {
+      radius: 5,
+      color: "#f8fafc",
+      weight: 1.5,
+      fillColor: "#0b0f0d",
+      fillOpacity: 0.95
+    }).bindPopup(
+      `<b>${city.name}</b><br><small>Cidade de referência próxima da rota</small><br><small>${city.distToRouteKm.toFixed(1)} km do traçado</small>`
+    );
+    marker.addTo(cityAnchorsLayer);
+  });
+
+  cityAnchorsLayer.addTo(map);
 }
 
 async function fetchDrivingRoute(from, to) {
@@ -2808,6 +3146,95 @@ if (topicsGridEl) {
   ).join("");
 }
 
+tripFormEl?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = tripNameEl?.value.trim();
+  if (!name) return;
+  const trip = {
+    id: String(Date.now()),
+    name,
+    startDate: tripStartDateEl?.value || "",
+    durationDays: Number(tripDurationEl?.value) || "",
+    description: tripDescriptionEl?.value.trim() || "",
+    createdAt: Date.now(),
+    expenses: []
+  };
+  travelExpenseTrips.unshift(trip);
+  selectedExpenseTripId = trip.id;
+  await saveTravelExpenseTrips();
+  tripFormEl.reset();
+});
+
+expenseCurrencyEl?.addEventListener("change", () => {
+  const currency = expenseCurrencyEl.value || "BRL";
+  if (expenseRateEl) expenseRateEl.value = String(CURRENCY_DEFAULT_RATES[currency] || 1);
+});
+
+expenseFormEl?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const trip = travelExpenseTrips.find((item) => item.id === selectedExpenseTripId);
+  if (!trip) return;
+  const amount = Number(expenseAmountEl?.value);
+  const rate = Number(expenseRateEl?.value) || 1;
+  if (!Number.isFinite(amount) || amount <= 0) return;
+  const expense = {
+    id: String(Date.now()),
+    category: expenseCategoryEl?.value || "extras",
+    payment: expensePaymentEl?.value || "credit",
+    amount,
+    currency: expenseCurrencyEl?.value || "BRL",
+    rate,
+    brl: amount * rate,
+    date: expenseDateEl?.value || "",
+    description: expenseDescriptionEl?.value.trim() || "",
+    createdAt: Date.now()
+  };
+  trip.expenses = [expense, ...(trip.expenses || [])];
+  selectedExpenseTripId = trip.id;
+  await saveTravelExpenseTrips();
+  expenseFormEl.reset();
+  if (expenseCurrencyEl) expenseCurrencyEl.value = "BRL";
+  if (expenseRateEl) expenseRateEl.value = "1";
+  setExpenseFormEnabled(true, trip);
+});
+
+tripsListEl?.addEventListener("click", async (event) => {
+  const item = event.target.closest("[data-trip-id]");
+  if (!item) return;
+  const tripId = item.dataset.tripId;
+  const button = event.target.closest("button[data-action]");
+  if (!button || button.dataset.action === "select-trip") {
+    window.location.hash = `#expense-trip/${encodeURIComponent(tripId)}`;
+    return;
+  }
+  if (button.dataset.action === "delete-trip") {
+    const confirmDelete = window.confirm("Deseja excluir esta viagem e todos os gastos dela?");
+    if (!confirmDelete) return;
+    travelExpenseTrips = travelExpenseTrips.filter((trip) => trip.id !== tripId);
+    if (selectedExpenseTripId === tripId) selectedExpenseTripId = null;
+    await saveTravelExpenseTrips();
+  }
+});
+
+expensesListEl?.addEventListener("click", async (event) => {
+  const button = event.target.closest("button[data-action='delete-expense']");
+  if (!button) return;
+  const item = event.target.closest("[data-trip-id][data-expense-id]");
+  if (!item) return;
+  const trip = travelExpenseTrips.find((entry) => entry.id === item.dataset.tripId);
+  if (!trip) return;
+  trip.expenses = (trip.expenses || []).filter((expense) => expense.id !== item.dataset.expenseId);
+  await saveTravelExpenseTrips();
+});
+
+clearExpenseSelectionBtn?.addEventListener("click", () => {
+  selectedExpenseTripId = null;
+  renderTravelExpenses();
+  if ((window.location.hash || "").startsWith("#expense-trip")) {
+    window.location.hash = "#expenses";
+  }
+});
+
 routeFocusBackBtn?.addEventListener("click", () => {
   if (window.location.hash === "#route") {
     window.history.back();
@@ -2850,10 +3277,14 @@ mapBackToCollabsBtn?.addEventListener("click", () => {
   if (mapBackToCollabsBtn) mapBackToCollabsBtn.style.display = "none";
   window.location.hash = target;
 });
+expenseTripBackBtn?.addEventListener("click", () => {
+  window.location.hash = "#expenses";
+});
 bindMobileMenu();
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
+refreshTravelExpenses();
 drawPoiMarkers();
 setupCommunityUi();
 
