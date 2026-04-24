@@ -390,6 +390,7 @@ const communityLonEl = document.getElementById("communityLon");
 const communityPhotoEl = document.getElementById("communityPhoto");
 const communityRemovePhotoEl = document.getElementById("communityRemovePhoto");
 const communityCancelBtn = document.getElementById("communityCancelBtn");
+const communityUseCenterBtn = document.getElementById("communityUseCenterBtn");
 const communitySaveBtn = document.getElementById("communitySaveBtn");
 const tripFormEl = document.getElementById("tripForm");
 const tripNameEl = document.getElementById("tripName");
@@ -448,6 +449,7 @@ let supabaseClient = null;
 let editingCommunityId = null;
 let editingCommunityPhotoUrl = null;
 let communityDraftMarker = null;
+let syncDraftWithMapCenter = false;
 let myCollaborationsCache = [];
 let routeOpenContext = "planner";
 let pendingOpenRouteContext = null;
@@ -2381,7 +2383,17 @@ function setCommunityStatus(text) {
   if (communityStatusEl) communityStatusEl.textContent = text;
 }
 
-function setDraftMarker(lat, lon) {
+function getCommunityDraftMarkerIcon() {
+  return L.divIcon({
+    className: "community-draft-pin",
+    html: "",
+    iconSize: [30, 30],
+    iconAnchor: [15, 30]
+  });
+}
+
+function setDraftMarker(lat, lon, options = {}) {
+  const { draggable = true } = options;
   if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return;
   const coords = [Number(lat), Number(lon)];
   if (!communityDraftMarker) {

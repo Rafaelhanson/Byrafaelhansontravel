@@ -498,6 +498,7 @@
       place-items:center;
       padding:16px;
       background:rgba(7,12,20,.56);
+      pointer-events:none;
     }
     .community-modal[hidden]{display:none}
     .community-panel{
@@ -511,12 +512,41 @@
       box-shadow:0 24px 50px rgba(2,12,27,.28);
       position:relative;
       z-index:3001;
+      pointer-events:auto;
     }
     .community-panel h3{margin:0 0 8px;font:800 1.28rem/1.15 "Playfair Display",serif;color:#e9f7f1}
     .community-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .community-grid .full{grid-column:1 / -1}
     .community-note{font:.78rem/1.35 Inter;color:#9cbeb2}
     .community-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px}
+    .community-draft-pin{
+      width:30px;
+      height:30px;
+      position:relative;
+      transform:translate(-50%,-100%);
+    }
+    .community-draft-pin::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      margin:auto;
+      width:18px;
+      height:18px;
+      border-radius:999px;
+      background:#ff8b4d;
+      box-shadow:0 0 0 2px #fff,0 10px 16px rgba(0,0,0,.35);
+    }
+    .community-draft-pin::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      bottom:-7px;
+      width:10px;
+      height:10px;
+      background:#ff8b4d;
+      transform:translateX(-50%) rotate(45deg);
+      box-shadow:0 0 0 2px #fff;
+    }
     @media (max-width:800px){.community-grid{grid-template-columns:1fr}}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
     .place{border:0;border-radius:12px;overflow:hidden;background:#102521;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
@@ -1077,6 +1107,7 @@
             </div>
           </div>
           <div class="community-actions">
+            <button type="button" class="btn" id="communityUseCenterBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Usar centro do mapa</button>
             <button type="button" class="btn" id="communityCancelBtn" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Cancelar</button>
             <button type="submit" class="btn btn-p" id="communitySaveBtn">Salvar ponto</button>
           </div>
