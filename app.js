@@ -1,49 +1,138 @@
+﻿function repairMojibake(value) {
+  if (typeof value !== "string" || !/[ÃÂâ€]/.test(value)) return value;
+
+  try {
+    const bytes = Uint8Array.from(Array.from(value).map((char) => char.charCodeAt(0) & 255));
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (_error) {
+    return value
+      .replace(/â†’/g, "→")
+      .replace(/â†”/g, "↔")
+      .replace(/â€¢/g, "•")
+      .replace(/â€“|â€”/g, "-")
+      .replace(/â€¦/g, "...")
+      .replace(/â€œ|â€�|â€|â€/g, "\"")
+      .replace(/â€˜|â€™/g, "'")
+      .replace(/Ã‡/g, "Ç")
+      .replace(/Ã§/g, "ç")
+      .replace(/Ã£/g, "ã")
+      .replace(/Ãµ/g, "õ")
+      .replace(/Ã¡/g, "á")
+      .replace(/Ã /g, "à")
+      .replace(/Ã¢/g, "â")
+      .replace(/Ã©/g, "é")
+      .replace(/Ãª/g, "ê")
+      .replace(/Ã­/g, "í")
+      .replace(/Ã³/g, "ó")
+      .replace(/Ã´/g, "ô")
+      .replace(/Ãº/g, "ú")
+      .replace(/Ã¼/g, "ü")
+      .replace(/Ã�/g, "Í")
+      .replace(/Ã“/g, "Ó")
+      .replace(/Ã‰/g, "É")
+      .replace(/Â±/g, "±")
+      .replace(/Âº/g, "º")
+      .replace(/Âª/g, "ª")
+      .replace(/Â /g, " ");
+  }
+}
+
+function repairVisibleText(root = document.body) {
+  if (!root) return;
+
+  const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (textWalker.nextNode()) textNodes.push(textWalker.currentNode);
+
+  textNodes.forEach((node) => {
+    const repaired = repairMojibake(node.nodeValue);
+    if (node.nodeValue !== repaired) node.nodeValue = repaired;
+  });
+
+  root.querySelectorAll?.("*").forEach((element) => {
+    ["title", "placeholder", "aria-label"].forEach((attr) => {
+      const current = element.getAttribute(attr);
+      if (!current) return;
+      const repaired = repairMojibake(current);
+      if (current !== repaired) element.setAttribute(attr, repaired);
+    });
+  });
+}
+
+function startTextRepairObserver() {
+  if (!document.body || window.__textRepairObserverStarted) return;
+  window.__textRepairObserverStarted = true;
+  repairVisibleText(document.body);
+
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === "characterData" && mutation.target?.parentNode) {
+        repairVisibleText(mutation.target.parentNode);
+        return;
+      }
+
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE && node.parentNode) {
+          repairVisibleText(node.parentNode);
+          return;
+        }
+        if (node.nodeType === Node.ELEMENT_NODE) repairVisibleText(node);
+      });
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+}
 const POIS = [
-  { id: "puerto-madryn", name: "Puerto Madryn", city: "Puerto Madryn", country: "Argentina", category: "city", lat: -42.7692, lng: -65.0385, distFromRoute: 12, description: "Base para natureza e fauna marinha na Patagônia atlântica.", maps: "https://maps.google.com/?q=Puerto+Madryn", image: "https://images.unsplash.com/photo-1505765050516-f72dcac9c60d?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
-  { id: "buenos-aires", name: "Buenos Aires", city: "Buenos Aires", country: "Argentina", category: "city", lat: -34.6037, lng: -58.3816, distFromRoute: 0, description: "Capital argentina com cultura, gastronomia e ótima estrutura.", maps: "https://maps.google.com/?q=Buenos+Aires", image: "https://images.unsplash.com/photo-1589909202802-8f4aadce1849?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
+  { id: "puerto-madryn", name: "Puerto Madryn", city: "Puerto Madryn", country: "Argentina", category: "city", lat: -42.7692, lng: -65.0385, distFromRoute: 12, description: "Base para natureza e fauna marinha na PatagÃ´nia atlÃ¢ntica.", maps: "https://maps.google.com/?q=Puerto+Madryn", image: "https://images.unsplash.com/photo-1505765050516-f72dcac9c60d?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
+  { id: "buenos-aires", name: "Buenos Aires", city: "Buenos Aires", country: "Argentina", category: "city", lat: -34.6037, lng: -58.3816, distFromRoute: 0, description: "Capital argentina com cultura, gastronomia e Ã³tima estrutura.", maps: "https://maps.google.com/?q=Buenos+Aires", image: "https://images.unsplash.com/photo-1589909202802-8f4aadce1849?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
   { id: "ushuaia", name: "Ushuaia", city: "Ushuaia", country: "Argentina", category: "city", lat: -54.8019, lng: -68.303, distFromRoute: 0, description: "Cidade mais austral da jornada.", maps: "https://maps.google.com/?q=Ushuaia", image: "https://images.unsplash.com/photo-1612298484490-72f0605e9055?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
-  { id: "torres", name: "Parque Nacional Torres del Paine", city: "Puerto Natales", country: "Chile", category: "national_park", lat: -50.9423, lng: -73.4068, distFromRoute: 20, description: "Parque nacional icônico com lagos e torres de granito.", maps: "https://maps.google.com/?q=Torres+del+Paine", image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
+  { id: "torres", name: "Parque Nacional Torres del Paine", city: "Puerto Natales", country: "Chile", category: "national_park", lat: -50.9423, lng: -73.4068, distFromRoute: 20, description: "Parque nacional icÃ´nico com lagos e torres de granito.", maps: "https://maps.google.com/?q=Torres+del+Paine", image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
   { id: "calafate", name: "El Calafate", city: "El Calafate", country: "Argentina", category: "city", lat: -50.3379, lng: -72.2648, distFromRoute: 0, description: "Base principal para visitar glaciares.", maps: "https://maps.google.com/?q=El+Calafate", image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
   { id: "perito-moreno", name: "Glaciar Perito Moreno", city: "El Calafate", country: "Argentina", category: "attraction", lat: -50.4966, lng: -73.1371, distFromRoute: 45, description: "Um dos glaciares mais impressionantes do planeta.", maps: "https://maps.google.com/?q=Glaciar+Perito+Moreno", image: "https://images.unsplash.com/photo-1482192505345-5655af888cc4?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
-  { id: "chalten", name: "El Chaltén", city: "El Chaltén", country: "Argentina", category: "city", lat: -49.3315, lng: -72.8863, distFromRoute: 0, description: "Capital do trekking na Patagônia argentina.", maps: "https://maps.google.com/?q=El+Chalten", image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
-  { id: "fitz-roy", name: "Fitz Roy", city: "El Chaltén", country: "Argentina", category: "viewpoint", lat: -49.2713, lng: -73.0434, distFromRoute: 12, description: "Montanha símbolo da região com visual épico.", maps: "https://maps.google.com/?q=Fitz+Roy", image: "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
+  { id: "chalten", name: "El ChaltÃ©n", city: "El ChaltÃ©n", country: "Argentina", category: "city", lat: -49.3315, lng: -72.8863, distFromRoute: 0, description: "Capital do trekking na PatagÃ´nia argentina.", maps: "https://maps.google.com/?q=El+Chalten", image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
+  { id: "fitz-roy", name: "Fitz Roy", city: "El ChaltÃ©n", country: "Argentina", category: "viewpoint", lat: -49.2713, lng: -73.0434, distFromRoute: 12, description: "Montanha sÃ­mbolo da regiÃ£o com visual Ã©pico.", maps: "https://maps.google.com/?q=Fitz+Roy", image: "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
   { id: "bariloche", name: "Bariloche", city: "Bariloche", country: "Argentina", category: "city", lat: -41.1335, lng: -71.3103, distFromRoute: 0, description: "Cidade alpina com montanhas, lagos e esportes.", maps: "https://maps.google.com/?q=Bariloche", image: "https://images.unsplash.com/photo-1439853949127-fa647821eba0?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico"] },
-  { id: "cerro-catedral", name: "Cerro Catedral", city: "Bariloche", country: "Argentina", category: "attraction", lat: -41.1715, lng: -71.4393, distFromRoute: 9, description: "Centro de esqui e trekking clássico de Bariloche.", maps: "https://maps.google.com/?q=Cerro+Catedral+Bariloche", image: "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
-  { id: "circuito-chico", name: "Circuito Chico", city: "Bariloche", country: "Argentina", category: "viewpoint", lat: -41.0898, lng: -71.5319, distFromRoute: 6, description: "Roteiro panorâmico com mirantes e lagos.", maps: "https://maps.google.com/?q=Circuito+Chico+Bariloche", image: "https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
-  { id: "nahuel-huapi", name: "Lago Nahuel Huapi", city: "Bariloche", country: "Argentina", category: "viewpoint", lat: -41.0956, lng: -71.423, distFromRoute: 4, description: "Lago icônico da região dos lagos andinos.", maps: "https://maps.google.com/?q=Lago+Nahuel+Huapi", image: "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
-  { id: "cerro-otto", name: "Cerro Otto", city: "Bariloche", country: "Argentina", category: "attraction", lat: -41.127, lng: -71.3711, distFromRoute: 5, description: "Mirante com teleférico e visual da cidade.", maps: "https://maps.google.com/?q=Cerro+Otto+Bariloche", image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
+  { id: "cerro-catedral", name: "Cerro Catedral", city: "Bariloche", country: "Argentina", category: "attraction", lat: -41.1715, lng: -71.4393, distFromRoute: 9, description: "Centro de esqui e trekking clÃ¡ssico de Bariloche.", maps: "https://maps.google.com/?q=Cerro+Catedral+Bariloche", image: "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
+  { id: "circuito-chico", name: "Circuito Chico", city: "Bariloche", country: "Argentina", category: "viewpoint", lat: -41.0898, lng: -71.5319, distFromRoute: 6, description: "Roteiro panorÃ¢mico com mirantes e lagos.", maps: "https://maps.google.com/?q=Circuito+Chico+Bariloche", image: "https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
+  { id: "nahuel-huapi", name: "Lago Nahuel Huapi", city: "Bariloche", country: "Argentina", category: "viewpoint", lat: -41.0956, lng: -71.423, distFromRoute: 4, description: "Lago icÃ´nico da regiÃ£o dos lagos andinos.", maps: "https://maps.google.com/?q=Lago+Nahuel+Huapi", image: "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
+  { id: "cerro-otto", name: "Cerro Otto", city: "Bariloche", country: "Argentina", category: "attraction", lat: -41.127, lng: -71.3711, distFromRoute: 5, description: "Mirante com telefÃ©rico e visual da cidade.", maps: "https://maps.google.com/?q=Cerro+Otto+Bariloche", image: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
   { id: "piedras-blancas", name: "Piedras Blancas", city: "Bariloche", country: "Argentina", category: "attraction", lat: -41.133, lng: -71.3309, distFromRoute: 6, description: "Complexo recreativo de neve e aventura.", maps: "https://maps.google.com/?q=Piedras+Blancas+Bariloche", image: "https://images.unsplash.com/photo-1483664852095-d6cc6870702d?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
-  { id: "isla-victoria", name: "Isla Victoria e Bosque de Arrayanes", city: "Bariloche", country: "Argentina", category: "attraction", lat: -40.7872, lng: -71.6467, distFromRoute: 18, description: "Passeio náutico clássico com bosque único.", maps: "https://maps.google.com/?q=Isla+Victoria+Bosque+de+Arrayanes", image: "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
+  { id: "isla-victoria", name: "Isla Victoria e Bosque de Arrayanes", city: "Bariloche", country: "Argentina", category: "attraction", lat: -40.7872, lng: -71.6467, distFromRoute: 18, description: "Passeio nÃ¡utico clÃ¡ssico com bosque Ãºnico.", maps: "https://maps.google.com/?q=Isla+Victoria+Bosque+de+Arrayanes", image: "https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
   { id: "cerro-tronador", name: "Cerro Tronador", city: "Bariloche", country: "Argentina", category: "viewpoint", lat: -41.1633, lng: -71.8857, distFromRoute: 42, description: "Montanha e glaciar impressionantes no parque.", maps: "https://maps.google.com/?q=Cerro+Tronador", image: "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1200&q=80", tags: ["turistico"] },
-  { id: "ruta-7-lagos", name: "Ruta de los 7 Lagos", city: "Neuquén", country: "Argentina", category: "viewpoint", lat: -40.7627, lng: -71.6463, distFromRoute: 14, description: "Rota cênica imperdível entre lagos andinos.", maps: "https://maps.google.com/?q=Ruta+de+los+7+Lagos", image: "https://images.unsplash.com/photo-1455218873509-8097305ee378?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
-  { id: "valle", name: "Valle Encantado", city: "Neuquén", country: "Argentina", category: "attraction", lat: -40.8235, lng: -69.8352, distFromRoute: 9, description: "Parada cênica com formações rochosas.", maps: "https://maps.google.com/?q=Valle+Encantado+Neuquen", image: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "gratuito", "turistico"] }
+  { id: "ruta-7-lagos", name: "Ruta de los 7 Lagos", city: "NeuquÃ©n", country: "Argentina", category: "viewpoint", lat: -40.7627, lng: -71.6463, distFromRoute: 14, description: "Rota cÃªnica imperdÃ­vel entre lagos andinos.", maps: "https://maps.google.com/?q=Ruta+de+los+7+Lagos", image: "https://images.unsplash.com/photo-1455218873509-8097305ee378?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "turistico", "gratuito"] },
+  { id: "valle", name: "Valle Encantado", city: "NeuquÃ©n", country: "Argentina", category: "attraction", lat: -40.8235, lng: -69.8352, distFromRoute: 9, description: "Parada cÃªnica com formaÃ§Ãµes rochosas.", maps: "https://maps.google.com/?q=Valle+Encantado+Neuquen", image: "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?auto=format&fit=crop&w=1200&q=80", tags: ["carro", "gratuito", "turistico"] }
 ];
 
 const STAGES = [
-  { id: "s1", title: "Etapa 1: Brasil até Ushuaia", sum: "Logística e fronteiras.", km: 4300, time: "6-9 dias", must: ["Canal Beagle", "Tierra del Fuego"], sleep: ["Río Gallegos", "Río Grande", "Ushuaia"], tips: ["Abasteça acima de meio tanque"] },
-  { id: "s2", title: "Etapa 2: Ushuaia até Torres del Paine", sum: "Trecho com vento e fronteira.", km: 820, time: "2-3 dias", must: ["Miradores"], sleep: ["Río Gallegos", "Puerto Natales"], tips: ["Checar horários de fronteira"] },
-  { id: "s3", title: "Etapa 3: Torres del Paine até El Chaltén / El Calafate", sum: "Parques e glaciares.", km: 620, time: "3-4 dias", must: ["Perito Moreno", "Fitz Roy"], sleep: ["El Calafate", "El Chaltén"], tips: ["Reserve ingressos"] },
-  { id: "s4", title: "Etapa 4: El Chaltén até Bariloche", sum: "Subida cênica.", km: 1450, time: "3-5 dias", must: ["Valle Encantado"], sleep: ["Neuquén", "Bariloche"], tips: ["Planeje alimentação de estrada"] },
-  { id: "s5", title: "Etapa 5: Bariloche até Buenos Aires", sum: "Natureza para cidade.", km: 1600, time: "3-4 dias", must: ["Laguna de Gómez"], sleep: ["Junín", "Buenos Aires"], tips: ["Revisão leve do carro"] },
-  { id: "s6", title: "Etapa 6: Buenos Aires até Brasil", sum: "Retorno organizado.", km: 1250, time: "2-3 dias", must: ["Lihué Calel"], sleep: ["Paso de los Libres"], tips: ["Planeje câmbio final"] }
+  { id: "s1", title: "Etapa 1: Brasil atÃ© Ushuaia", sum: "LogÃ­stica e fronteiras.", km: 4300, time: "6-9 dias", must: ["Canal Beagle", "Tierra del Fuego"], sleep: ["RÃ­o Gallegos", "RÃ­o Grande", "Ushuaia"], tips: ["AbasteÃ§a acima de meio tanque"] },
+  { id: "s2", title: "Etapa 2: Ushuaia atÃ© Torres del Paine", sum: "Trecho com vento e fronteira.", km: 820, time: "2-3 dias", must: ["Miradores"], sleep: ["RÃ­o Gallegos", "Puerto Natales"], tips: ["Checar horÃ¡rios de fronteira"] },
+  { id: "s3", title: "Etapa 3: Torres del Paine atÃ© El ChaltÃ©n / El Calafate", sum: "Parques e glaciares.", km: 620, time: "3-4 dias", must: ["Perito Moreno", "Fitz Roy"], sleep: ["El Calafate", "El ChaltÃ©n"], tips: ["Reserve ingressos"] },
+  { id: "s4", title: "Etapa 4: El ChaltÃ©n atÃ© Bariloche", sum: "Subida cÃªnica.", km: 1450, time: "3-5 dias", must: ["Valle Encantado"], sleep: ["NeuquÃ©n", "Bariloche"], tips: ["Planeje alimentaÃ§Ã£o de estrada"] },
+  { id: "s5", title: "Etapa 5: Bariloche atÃ© Buenos Aires", sum: "Natureza para cidade.", km: 1600, time: "3-4 dias", must: ["Laguna de GÃ³mez"], sleep: ["JunÃ­n", "Buenos Aires"], tips: ["RevisÃ£o leve do carro"] },
+  { id: "s6", title: "Etapa 6: Buenos Aires atÃ© Brasil", sum: "Retorno organizado.", km: 1250, time: "2-3 dias", must: ["LihuÃ© Calel"], sleep: ["Paso de los Libres"], tips: ["Planeje cÃ¢mbio final"] }
 ];
 
 const TOPICS = [
-  ["Documentos", ["RG/passaporte", "CNH e documento do veículo", "Carta Verde", "SOAPEX para Chile"]],
-  ["Fronteiras", ["Uruguaiana ↔ Paso de los Libres", "Valide horários oficiais"]],
-  ["Combustível", ["Trechos longos sem posto", "Regra: tanque acima de meio"]],
-  ["Dinheiro/Internet", ["Cartão + espécie", "Mapas offline", "Chip internacional"]],
-  ["Melhor época", ["Novembro-março", "Outubro/abril também são ótimos"]],
-  ["Links úteis", ["Receita Federal", "Parques nacionais ARG/CHI", "Google Maps"]]
+  ["Documentos", ["RG/passaporte", "CNH e documento do veÃ­culo", "Carta Verde", "SOAPEX para Chile"]],
+  ["Fronteiras", ["Uruguaiana â†” Paso de los Libres", "Valide horÃ¡rios oficiais"]],
+  ["CombustÃ­vel", ["Trechos longos sem posto", "Regra: tanque acima de meio"]],
+  ["Dinheiro/Internet", ["CartÃ£o + espÃ©cie", "Mapas offline", "Chip internacional"]],
+  ["Melhor Ã©poca", ["Novembro-marÃ§o", "Outubro/abril tambÃ©m sÃ£o Ã³timos"]],
+  ["Links Ãºteis", ["Receita Federal", "Parques nacionais ARG/CHI", "Google Maps"]]
 ];
 
 const CITY_REFERENCE = [
-  ["São Paulo", -23.5505, -46.6333], ["Rio de Janeiro", -22.9068, -43.1729], ["Curitiba", -25.4284, -49.2733], ["Porto Alegre", -30.0346, -51.2177],
-  ["Florianópolis", -27.5949, -48.5482], ["Brasília", -15.7939, -47.8828], ["Belo Horizonte", -19.9167, -43.9345], ["Salvador", -12.9777, -38.5016],
-  ["Erechim", -27.6344, -52.2739], ["Chapecó", -27.1004, -52.6152], ["Passo Fundo", -28.2628, -52.4069], ["Santa Maria", -29.6842, -53.8069],
+  ["SÃ£o Paulo", -23.5505, -46.6333], ["Rio de Janeiro", -22.9068, -43.1729], ["Curitiba", -25.4284, -49.2733], ["Porto Alegre", -30.0346, -51.2177],
+  ["FlorianÃ³polis", -27.5949, -48.5482], ["BrasÃ­lia", -15.7939, -47.8828], ["Belo Horizonte", -19.9167, -43.9345], ["Salvador", -12.9777, -38.5016],
+  ["Erechim", -27.6344, -52.2739], ["ChapecÃ³", -27.1004, -52.6152], ["Passo Fundo", -28.2628, -52.4069], ["Santa Maria", -29.6842, -53.8069],
   ["Uruguaiana", -29.7618, -57.0858], ["Pelotas", -31.7654, -52.3376], ["Caxias do Sul", -29.1634, -51.1797],
-  ["Buenos Aires", -34.6037, -58.3816], ["Rosário", -32.9442, -60.6505], ["Córdoba", -31.4201, -64.1888], ["Mendoza", -32.8895, -68.8458],
-  ["Neuquén", -38.9516, -68.0591], ["Bariloche", -41.1335, -71.3103], ["El Calafate", -50.3379, -72.2648], ["El Chaltén", -49.3315, -72.8863],
+  ["Buenos Aires", -34.6037, -58.3816], ["RosÃ¡rio", -32.9442, -60.6505], ["CÃ³rdoba", -31.4201, -64.1888], ["Mendoza", -32.8895, -68.8458],
+  ["NeuquÃ©n", -38.9516, -68.0591], ["Bariloche", -41.1335, -71.3103], ["El Calafate", -50.3379, -72.2648], ["El ChaltÃ©n", -49.3315, -72.8863],
   ["Ushuaia", -54.8019, -68.303], ["Punta Arenas", -53.1638, -70.9171], ["Puerto Natales", -51.7308, -72.506], ["Montevideo", -34.9011, -56.1645]
 ].map(([name, lat, lng]) => ({ name, lat, lng }));
 
@@ -53,34 +142,34 @@ const COUNTRY_NAMES = {
   CL: "Chile",
   UY: "Uruguai",
   PY: "Paraguai",
-  BO: "Bolívia",
+  BO: "BolÃ­via",
   PE: "Peru"
 };
 
 const CITY_COUNTRY_BY_NAME = {
-  "São Paulo": "BR",
+  "SÃ£o Paulo": "BR",
   "Rio de Janeiro": "BR",
   Curitiba: "BR",
   "Porto Alegre": "BR",
-  Florianópolis: "BR",
-  Brasília: "BR",
+  "FlorianÃ³polis": "BR",
+  "BrasÃ­lia": "BR",
   "Belo Horizonte": "BR",
   Salvador: "BR",
   Erechim: "BR",
-  Chapecó: "BR",
+  "ChapecÃ³": "BR",
   "Passo Fundo": "BR",
   "Santa Maria": "BR",
   Uruguaiana: "BR",
   Pelotas: "BR",
   "Caxias do Sul": "BR",
   "Buenos Aires": "AR",
-  Rosário: "AR",
-  Córdoba: "AR",
+  "RosÃ¡rio": "AR",
+  "CÃ³rdoba": "AR",
   Mendoza: "AR",
-  Neuquén: "AR",
+  "NeuquÃ©n": "AR",
   Bariloche: "AR",
   "El Calafate": "AR",
-  "El Chaltén": "AR",
+  "El ChaltÃ©n": "AR",
   Ushuaia: "AR",
   "Punta Arenas": "CL",
   "Puerto Natales": "CL",
@@ -306,12 +395,12 @@ Object.assign(CITY_COUNTRY_BY_NAME, {
 
 const KNOWN_BORDER_CROSSINGS = [
   { name: "Uruguaiana / Paso de los Libres", lat: -29.7603, lon: -57.0862, from: "BR", to: "AR" },
-  { name: "São Borja / Santo Tomé", lat: -28.6582, lon: -56.0046, from: "BR", to: "AR" },
-  { name: "Foz do Iguaçu / Puerto Iguazú", lat: -25.5975, lon: -54.5763, from: "BR", to: "AR" },
-  { name: "Paso San Sebastián", lat: -53.3382, lon: -68.4031, from: "AR", to: "CL" },
-  { name: "Monte Aymond / Integración Austral", lat: -52.022, lon: -69.5825, from: "AR", to: "CL" },
+  { name: "SÃ£o Borja / Santo TomÃ©", lat: -28.6582, lon: -56.0046, from: "BR", to: "AR" },
+  { name: "Foz do IguaÃ§u / Puerto IguazÃº", lat: -25.5975, lon: -54.5763, from: "BR", to: "AR" },
+  { name: "Paso San SebastiÃ¡n", lat: -53.3382, lon: -68.4031, from: "AR", to: "CL" },
+  { name: "Monte Aymond / IntegraciÃ³n Austral", lat: -52.022, lon: -69.5825, from: "AR", to: "CL" },
   { name: "Dorotea / Puerto Natales", lat: -51.5721, lon: -72.2533, from: "AR", to: "CL" },
-  { name: "Cardenal Samoré", lat: -40.7178, lon: -71.7338, from: "AR", to: "CL" },
+  { name: "Cardenal SamorÃ©", lat: -40.7178, lon: -71.7338, from: "AR", to: "CL" },
   { name: "Pino Hachado", lat: -38.6584, lon: -70.9573, from: "AR", to: "CL" },
   { name: "Los Libertadores", lat: -32.8449, lon: -70.1028, from: "AR", to: "CL" }
 ];
@@ -376,6 +465,7 @@ const collabDetailSectionEl = document.getElementById("collab-detail");
 const collabDetailBodyEl = document.getElementById("collabDetailBody");
 const backToCollabsBtn = document.getElementById("backToCollabsBtn");
 const addCommunityPointBtn = document.getElementById("addCommunityPointBtn");
+const confirmCommunityPointBtn = document.getElementById("confirmCommunityPointBtn");
 const useGpsPointBtn = document.getElementById("useGpsPointBtn");
 const mapGoCollabsBtn = document.getElementById("mapGoCollabsBtn");
 const mapBackToCollabsBtn = document.getElementById("mapBackToCollabsBtn");
@@ -445,6 +535,7 @@ let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
 let isAddingCommunityPoint = false;
+let pendingCommunityCoords = null;
 let supabaseClient = null;
 let editingCommunityId = null;
 let editingCommunityPhotoUrl = null;
@@ -493,11 +584,11 @@ const COMMUNITY_CATEGORY_COLORS = {
 };
 
 const EXPENSE_CATEGORY_LABELS = {
-  fuel: "Combustível",
-  food: "Alimentação",
+  fuel: "CombustÃ­vel",
+  food: "AlimentaÃ§Ã£o",
   lodging: "Hospedagem",
   tickets: "Passeios/ingressos",
-  maintenance: "Manutenção",
+  maintenance: "ManutenÃ§Ã£o",
   extras: "Gastos extras"
 };
 
@@ -511,10 +602,10 @@ const EXPENSE_CATEGORY_COLORS = {
 };
 
 const EXPENSE_PAYMENT_LABELS = {
-  credit: "Cartão de crédito",
-  debit: "Cartão de débito",
+  credit: "CartÃ£o de crÃ©dito",
+  debit: "CartÃ£o de dÃ©bito",
   cash: "Dinheiro",
-  pix: "Pix/transferência"
+  pix: "Pix/transferÃªncia"
 };
 
 const CURRENCY_DEFAULT_RATES = {
@@ -787,26 +878,26 @@ function updateActiveNav(hash) {
 function renderCollabDetail(item) {
   if (!collabDetailBodyEl) return;
   if (!item) {
-    collabDetailBodyEl.innerHTML = `<p class="tiny">Colaboração não encontrada.</p>`;
+    collabDetailBodyEl.innerHTML = `<p class="tiny">ColaboraÃ§Ã£o nÃ£o encontrada.</p>`;
     return;
   }
   const createdAt = item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-";
   const category = COMMUNITY_CATEGORY_LABELS[item.category] || item.category || "Ponto";
-  const photoHtml = item.photo_url ? `<img src="${item.photo_url}" alt="foto colaboração" class="collab-detail-photo">` : "";
+  const photoHtml = item.photo_url ? `<img src="${item.photo_url}" alt="foto colaboraÃ§Ã£o" class="collab-detail-photo">` : "";
   const mapsUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
   collabDetailBodyEl.innerHTML = `
     <article class="collab-detail-card">
       <div class="collab-detail-head">
         <div>
           <h3 class="collab-detail-title">${item.name || "Ponto colaborativo"}</h3>
-          <div class="collab-detail-meta">${category} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
+          <div class="collab-detail-meta">${category} â€¢ ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
           <div class="collab-detail-meta">Criado em: ${createdAt}</div>
-          <p class="collab-detail-meta" style="margin-top:8px">${item.description || "Sem descrição."}</p>
+          <p class="collab-detail-meta" style="margin-top:8px">${item.description || "Sem descricao."}</p>
           <p class="collab-detail-meta"><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a></p>
         </div>
         <div class="saved-route-actions" style="margin-top:0">
           <button type="button" data-action="detail-edit">Editar</button>
-          <button type="button" data-action="detail-delete" class="danger" title="Excluir colaboração">&#128465;</button>
+          <button type="button" data-action="detail-delete" class="danger" title="Excluir colaboraÃ§Ã£o">&#128465;</button>
         </div>
       </div>
       ${photoHtml}
@@ -816,10 +907,10 @@ function renderCollabDetail(item) {
   const delBtn = collabDetailBodyEl.querySelector("[data-action='detail-delete']");
   editBtn?.addEventListener("click", () => {
     openCommunityModal(Number(item.lat), Number(item.lon), item);
-    setCommunityStatus("Edite os campos e salve as alterações.");
+    setCommunityStatus("Edite os campos e salve as alteraÃ§Ãµes.");
   });
   delBtn?.addEventListener("click", async () => {
-    const confirmDelete = window.confirm("Deseja excluir esta colaboração?");
+    const confirmDelete = window.confirm("Deseja excluir esta colaboraÃ§Ã£o?");
     if (!confirmDelete) return;
     await deleteMyCollaboration(item.id);
     window.location.hash = "#my-collabs";
@@ -842,7 +933,7 @@ function openCollaborativeMap(backTargetHash = null) {
   }
   handleSectionVisibilityByHash("#mapa");
   window.location.hash = "#mapa";
-  setCommunityStatus("Use os botões para adicionar ponto colaborativo.");
+  setCommunityStatus("Use os botÃµes para adicionar ponto colaborativo.");
   requestAnimationFrame(() => {
     map.invalidateSize();
     mapSectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -902,11 +993,7 @@ function handleSectionVisibilityByHash(hash) {
   const allowedTargets = new Set(["home", "planner", "my-routes", "expenses", "expense-trip", "my-collabs", "mapa", "destinos", "route"]);
   const sectionId = allowedTargets.has(target) ? target : "home";
   if (sectionId === "mapa") revealMapSection();
-  if (sectionId === "planner" && normalized !== "#route") {
-    clearPlannerData();
-  } else {
-    exitRouteFocusMode();
-  }
+  exitRouteFocusMode();
   setSectionVisibility(sectionId);
   setCollabDetailVisibility(false);
   updateActiveNav(`#${sectionId}`);
@@ -1004,7 +1091,7 @@ function updateRouteFocusHeader(route) {
   const createdDate = createdAtDate.toLocaleDateString("pt-BR");
   const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   routeFocusTitleEl.textContent = `${route.origin || "-"} -> ${destinationText || "-"}`;
-  routeFocusMetaEl.textContent = `${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias • criada em ${createdDate} às ${createdTime}`;
+  routeFocusMetaEl.textContent = `${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias â€¢ criada em ${createdDate} Ã s ${createdTime}`;
   routeFocusHeaderEl.style.display = "block";
 }
 
@@ -1013,7 +1100,7 @@ async function shareRoute(route) {
     warnEl.textContent = "Gere ou abra uma rota antes de compartilhar.";
     return;
   }
-  const shareText = `${route.name || "Rota"}\n${route.origin || "-"} -> ${(route.destinations || []).join(" - ") || "-"}\n${route.totalKm || 0} km • ${route.totalHours || 0} h • ${route.totalDays || 0} dias`;
+  const shareText = `${route.name || "Rota"}\n${route.origin || "-"} -> ${(route.destinations || []).join(" - ") || "-"}\n${route.totalKm || 0} km â€¢ ${route.totalHours || 0} h â€¢ ${route.totalDays || 0} dias`;
   try {
     if (navigator.share) {
       await navigator.share({
@@ -1025,11 +1112,11 @@ async function shareRoute(route) {
     }
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(shareText);
-      warnEl.textContent = "Resumo da rota copiado para a área de transferência.";
+      warnEl.textContent = "Resumo da rota copiado para a Ã¡rea de transferÃªncia.";
       return;
     }
   } catch (_error) {}
-  warnEl.textContent = "Não foi possível compartilhar agora.";
+  warnEl.textContent = "NÃ£o foi possÃ­vel compartilhar agora.";
 }
 
 async function getRoutesStorageKey() {
@@ -1135,7 +1222,7 @@ function formatBrl(value) {
 }
 
 function formatTravelDate(value) {
-  if (!value) return "Data não informada";
+  if (!value) return "Data nÃ£o informada";
   const date = new Date(`${value}T12:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("pt-BR");
@@ -1178,8 +1265,8 @@ function setExpenseFormEnabled(enabled, selectedTrip) {
   }
   if (expenseNoTripHintEl) {
     expenseNoTripHintEl.textContent = enabled
-      ? `Lançando gastos em: ${selectedTrip.name}`
-      : "Selecione uma viagem em \"Viagens cadastradas\" para começar a lançar gastos.";
+      ? `LanÃ§ando gastos em: ${selectedTrip.name}`
+      : "Selecione uma viagem em \"Viagens cadastradas\" para comeÃ§ar a lanÃ§ar gastos.";
   }
 }
 
@@ -1189,7 +1276,7 @@ function renderExpensePie(totals) {
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
   if (!total) {
     expensePieEl.style.background = "#17362f";
-    expenseLegendEl.innerHTML = `<div class="tiny">Adicione gastos para gerar o gráfico.</div>`;
+    expenseLegendEl.innerHTML = `<div class="tiny">Adicione gastos para gerar o grÃ¡fico.</div>`;
     return;
   }
 
@@ -1205,7 +1292,7 @@ function renderExpensePie(totals) {
     .map(([category, value]) => {
       const percent = Math.round((value / total) * 100);
       const color = EXPENSE_CATEGORY_COLORS[category] || "#86d1a5";
-      return `<div class="expense-legend-item"><span class="expense-legend-label"><span class="expense-dot" style="background:${color}"></span>${EXPENSE_CATEGORY_LABELS[category] || category}</span><span>${formatBrl(value)} • ${percent}%</span></div>`;
+      return `<div class="expense-legend-item"><span class="expense-legend-label"><span class="expense-dot" style="background:${color}"></span>${EXPENSE_CATEGORY_LABELS[category] || category}</span><span>${formatBrl(value)} â€¢ ${percent}%</span></div>`;
     })
     .join("");
 }
@@ -1220,10 +1307,10 @@ function renderTravelExpenses() {
   }
   if (expenseTripMetaEl) {
     const start = formatTravelDate(selectedTrip?.startDate || "");
-    const duration = selectedTrip?.durationDays ? `${selectedTrip.durationDays} dias` : "Duração não informada";
+    const duration = selectedTrip?.durationDays ? `${selectedTrip.durationDays} dias` : "DuraÃ§Ã£o nÃ£o informada";
     expenseTripMetaEl.textContent = selectedTrip
-      ? `${start} • ${duration} • ${selectedTrip.description || "Sem descrição."}`
-      : "Abra uma viagem em “Gastos de viagem” para começar a lançar despesas.";
+      ? `${start} â€¢ ${duration} â€¢ ${selectedTrip.description || "Sem descricao."}`
+      : "Abra uma viagem em â€œGastos de viagemâ€ para comeÃ§ar a lanÃ§ar despesas.";
   }
 
   tripsEmptyEl.hidden = travelExpenseTrips.length > 0;
@@ -1234,8 +1321,8 @@ function renderTravelExpenses() {
       return `
         <article class="saved-route-item${activeClass}" data-trip-id="${trip.id}">
           <h3 class="saved-route-title">${trip.name}</h3>
-          <div class="saved-route-meta">${formatTravelDate(trip.startDate)} • ${trip.durationDays || "-"} dias</div>
-          <div class="saved-route-meta">${trip.description || "Sem descrição."}</div>
+          <div class="saved-route-meta">${formatTravelDate(trip.startDate)} â€¢ ${trip.durationDays || "-"} dias</div>
+          <div class="saved-route-meta">${trip.description || "Sem descricao."}</div>
           <div class="expense-money">${formatBrl(total)}</div>
           <div class="saved-route-actions">
             <button type="button" data-action="select-trip">Abrir viagem</button>
@@ -1263,7 +1350,7 @@ function renderTravelExpenses() {
           <span class="expense-chip">${EXPENSE_CATEGORY_LABELS[expense.category] || expense.category}</span>
           <span class="expense-chip">${EXPENSE_PAYMENT_LABELS[expense.payment] || expense.payment}</span>
         </div>
-        <div class="saved-route-meta">${formatTravelDate(expense.date)} • ${Number(expense.amount || 0).toFixed(2)} ${expense.currency} • cotação ${Number(expense.rate || 1).toFixed(4)}</div>
+        <div class="saved-route-meta">${formatTravelDate(expense.date)} â€¢ ${Number(expense.amount || 0).toFixed(2)} ${expense.currency} â€¢ cotaÃ§Ã£o ${Number(expense.rate || 1).toFixed(4)}</div>
         <div class="expense-money">${formatBrl(expense.brl)}</div>
         <div class="saved-route-actions">
           <button type="button" data-action="delete-expense" class="danger" title="Excluir gasto">&#128465;</button>
@@ -1297,11 +1384,11 @@ function renderSavedRoutes(routes = []) {
   savedRoutesListEl.innerHTML = routes
     .map((route) => {
       const createdAt = new Date(route.createdAt || Date.now()).toLocaleString("pt-BR");
-      const destinationText = Array.isArray(route.destinations) && route.destinations.length ? route.destinations.join(" • ") : "-";
+      const destinationText = Array.isArray(route.destinations) && route.destinations.length ? route.destinations.join(" â€¢ ") : "-";
       return `<article class="saved-route-item" data-route-id="${route.id}">
         <h4 class="saved-route-title">${route.name || "Rota salva"}</h4>
-        <div class="saved-route-meta">${route.origin || "-"} → ${destinationText}</div>
-        <div class="saved-route-meta">${route.totalKm || 0} km • ${route.totalHours || 0} h • ${route.totalDays || 0} dias • salvo em ${createdAt}</div>
+        <div class="saved-route-meta">${route.origin || "-"} â†’ ${destinationText}</div>
+        <div class="saved-route-meta">${route.totalKm || 0} km â€¢ ${route.totalHours || 0} h â€¢ ${route.totalDays || 0} dias â€¢ salvo em ${createdAt}</div>
         <div class="saved-route-actions">
           <button type="button" data-action="open">Abrir</button>
           <button type="button" data-action="delete">Excluir</button>
@@ -1396,14 +1483,14 @@ function updateDayLimitUi() {
   if (!dayLimitModeEl || !dayLimitValueEl || !dayLimitLabelEl || !dayLimitHelpEl) return;
   const mode = dayLimitModeEl.value;
   if (mode === "hours") {
-    dayLimitLabelEl.textContent = "Horas máximas por dia";
+    dayLimitLabelEl.textContent = "Horas mÃ¡ximas por dia";
     dayLimitHelpEl.textContent = "Exemplo: 8 horas por dia.";
     dayLimitValueEl.placeholder = "Ex.: 8";
     dayLimitValueEl.min = "1";
     dayLimitValueEl.max = "16";
     dayLimitValueEl.step = "0.5";
   } else {
-    dayLimitLabelEl.textContent = "Quilometragem máxima por dia";
+    dayLimitLabelEl.textContent = "Quilometragem mÃ¡xima por dia";
     dayLimitHelpEl.textContent = "Exemplo: 650 km por dia.";
     dayLimitValueEl.placeholder = "Ex.: 650";
     dayLimitValueEl.min = "50";
@@ -1718,7 +1805,7 @@ function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
       const borderHtml = day.borderCrossing
         ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
     })
     .join("");
 }
@@ -1762,7 +1849,7 @@ function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
       const borderHtml = day.borderCrossing
         ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
     })
     .join("");
 }
@@ -1806,7 +1893,7 @@ const NEAR_CITY_LABEL_MAX_KM = 35;
 
 function metaFromCoordFast(lat, lon) {
   const nearest = nearestCityByCoord(lat, lon);
-  if (!nearest) return { label: "Parada intermediária", country: "", countryCode: "" };
+  if (!nearest) return { label: "Parada intermediÃ¡ria", country: "", countryCode: "" };
   const countryCode = CITY_COUNTRY_BY_NAME[nearest.name] || "";
   return {
     label: nearest.name,
@@ -1945,7 +2032,7 @@ function buildStopLabel(meta, forcedLabel, segment, fallbackLabel) {
   const hasRealRoadLabel = roadLabel && !/trecho|->/i.test(roadLabel);
 
   // Preferimos: cidade + ruta real (quando existir).
-  if (cityLabel && hasRealRoadLabel) return `${cityLabel} • ${roadLabel}`;
+  if (cityLabel && hasRealRoadLabel) return `${cityLabel} â€¢ ${roadLabel}`;
   return cityLabel || fallbackLabel;
 }
 
@@ -1972,7 +2059,7 @@ function renderDaysHtmlEnhanced(days = [], style = "fast", limitMode = "km") {
       const mapsLinkHtml = day.googleMapsUrl
         ? `<div class="tiny" style="margin-top:4px"><a href="${day.googleMapsUrl}" target="_blank" rel="noreferrer" style="color:#ffffff;text-decoration:underline">Ver rota no Google Maps</a></div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
     })
     .join("");
 }
@@ -2051,7 +2138,7 @@ async function reverseGeocodeMeta(lat, lon) {
       data.address?.municipality ||
       data.address?.county ||
       data.display_name?.split(",")?.[0] ||
-      "Parada intermediária";
+      "Parada intermediÃ¡ria";
     const meta = {
       label,
       country: data.address?.country || "",
@@ -2062,7 +2149,7 @@ async function reverseGeocodeMeta(lat, lon) {
     return meta;
   } catch (error) {
     let min = Number.POSITIVE_INFINITY;
-    let nearest = "Parada intermediária";
+    let nearest = "Parada intermediÃ¡ria";
     for (const city of CITY_REFERENCE) {
       const d = haversineKm([lat, lon], [city.lat, city.lng]);
       if (d < min) {
@@ -2182,9 +2269,9 @@ async function fetchRouteAmenities(coords, stopCoords = []) {
 }
 
 function sleepByStyle(style, cityLabel) {
-  if (style === "camping") return `Parada recomendada: camping na região de ${cityLabel}.`;
+  if (style === "camping") return `Parada recomendada: camping na regiÃ£o de ${cityLabel}.`;
   if (style === "hotel") return `Parada recomendada: hotel/pousada com estacionamento em ${cityLabel}.`;
-  if (style === "panoramic") return `Parada recomendada: parada cênica em ${cityLabel}.`;
+  if (style === "panoramic") return `Parada recomendada: parada cÃªnica em ${cityLabel}.`;
   return `Parada recomendada: parada funcional em ${cityLabel}.`;
 }
 
@@ -2230,7 +2317,7 @@ function drawNearbyCityMarkers() {
       fillColor: "#0b0f0d",
       fillOpacity: 0.95
     }).bindPopup(
-      `<b>${city.name}</b><br><small>Cidade de referência próxima da rota</small><br><small>${city.distToRouteKm.toFixed(1)} km do traçado</small>`
+      `<b>${city.name}</b><br><small>Cidade de referÃªncia prÃ³xima da rota</small><br><small>${city.distToRouteKm.toFixed(1)} km do traÃ§ado</small>`
     );
     marker.addTo(cityAnchorsLayer);
   });
@@ -2268,7 +2355,7 @@ async function fetchDrivingRoute(from, to) {
       }
     }
   }
-  throw lastError || new Error("Rota indisponível");
+  throw lastError || new Error("Rota indisponÃ­vel");
 }
 
 function drawDayStops(boundaryPoints, days) {
@@ -2289,7 +2376,7 @@ function drawDayStops(boundaryPoints, days) {
     });
 
     const marker = L.marker(stop.coord, { icon }).bindPopup(
-      `<b>Dia ${dayNumber}</b><br>${day.from} → ${day.to}<br>${day.km} km • ${day.hours} h${day.borderCrossing ? `<br><span style="color:#b42318;font-weight:700">Fronteira/aduana neste trecho</span>` : ""}`
+      `<b>Dia ${dayNumber}</b><br>${day.from} â†’ ${day.to}<br>${day.km} km â€¢ ${day.hours} h${day.borderCrossing ? `<br><span style="color:#b42318;font-weight:700">Fronteira/aduana neste trecho</span>` : ""}`
     );
     marker.setZIndexOffset(1800);
     marker.addTo(dayStopsLayer);
@@ -2303,7 +2390,7 @@ function drawDayStops(boundaryPoints, days) {
         iconAnchor: [18, 12]
       });
       const borderMarker = L.marker(borderCoord, { icon: borderIcon })
-        .bindPopup(`<b>Fronteira/aduana</b><br>${day.borderText || "Mudança de país neste dia."}`)
+        .bindPopup(`<b>Fronteira/aduana</b><br>${day.borderText || "MudanÃ§a de paÃ­s neste dia."}`)
         .addTo(borderCrossingsLayer);
       borderMarker.setZIndexOffset(1900);
     }
@@ -2339,7 +2426,7 @@ function drawPoiMarkers() {
       iconAnchor: [13, 13]
     });
     const marker = L.marker([poi.lat, poi.lng], { icon }).bindPopup(
-      `<b>${poi.name}</b><br><small>${categoryLabel} • ${poi.city}</small><p>${poi.description}</p><a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a>`
+      `<b>${poi.name}</b><br><small>${categoryLabel} â€¢ ${poi.city}</small><p>${poi.description}</p><a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a>`
     );
     marker.addTo(poisLayer);
   });
@@ -2371,7 +2458,7 @@ function drawCommunityPoints() {
 
     L.marker([point.lat, point.lon], { icon })
       .bindPopup(
-        `<b>${point.name}</b><br><small>${label} • ${point.user_email || "colaborador"}</small>${photoHtml}<p style="margin:6px 0 8px">${point.description || "Sem descrição."}</p><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a>`
+        `<b>${point.name}</b><br><small>${label}</small>${photoHtml}<p style="margin:6px 0 8px">${point.description || "Sem descricao."}</p><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a>`
       )
       .addTo(communityLayer);
   });
@@ -2381,6 +2468,19 @@ function drawCommunityPoints() {
 
 function setCommunityStatus(text) {
   if (communityStatusEl) communityStatusEl.textContent = text;
+}
+
+function setCommunityConfirmState(enabled) {
+  if (!confirmCommunityPointBtn) return;
+  confirmCommunityPointBtn.disabled = !enabled;
+  confirmCommunityPointBtn.style.opacity = enabled ? "1" : ".55";
+}
+
+function setCommunityPickerMode(active) {
+  isAddingCommunityPoint = Boolean(active);
+  if (!confirmCommunityPointBtn) return;
+  confirmCommunityPointBtn.style.display = active ? "inline-flex" : "none";
+  setCommunityConfirmState(Boolean(active && pendingCommunityCoords));
 }
 
 function getCommunityDraftMarkerIcon() {
@@ -2397,16 +2497,27 @@ function setDraftMarker(lat, lon, options = {}) {
   if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return;
   const coords = [Number(lat), Number(lon)];
   if (!communityDraftMarker) {
-    communityDraftMarker = L.marker(coords, { draggable: true }).addTo(map);
-    communityDraftMarker.bindPopup("Ponto em edição");
+    communityDraftMarker = L.marker(coords, {
+      draggable: true,
+      icon: getCommunityDraftMarkerIcon()
+    }).addTo(map);
+    communityDraftMarker.bindPopup("Ponto em ediÃ§Ã£o");
     communityDraftMarker.on("dragend", () => {
       const p = communityDraftMarker.getLatLng();
-      if (communityLatEl) communityLatEl.value = Number(p.lat).toFixed(6);
-      if (communityLonEl) communityLonEl.value = Number(p.lng).toFixed(6);
+      const latValue = Number(p.lat);
+      const lonValue = Number(p.lng);
+      if (communityLatEl) communityLatEl.value = latValue.toFixed(6);
+      if (communityLonEl) communityLonEl.value = lonValue.toFixed(6);
+      pendingCommunityCoords = { lat: latValue, lon: lonValue };
+      if (isAddingCommunityPoint) {
+        setCommunityConfirmState(true);
+        setCommunityStatus("Alfinete ajustado. Clique em \"Escolher este ponto\" para continuar.");
+      }
     });
   } else {
     communityDraftMarker.setLatLng(coords);
   }
+  communityDraftMarker.dragging?.[draggable ? "enable" : "disable"]();
 }
 
 function clearDraftMarker() {
@@ -2434,7 +2545,7 @@ function openCommunityModal(lat, lon, item = null) {
     communityLonEl.value = lon.toFixed(6);
     setDraftMarker(lat, lon);
   }
-  if (communitySaveBtn) communitySaveBtn.textContent = editingCommunityId ? "Salvar alterações" : "Salvar ponto";
+  if (communitySaveBtn) communitySaveBtn.textContent = editingCommunityId ? "Salvar alteraÃ§Ãµes" : "Salvar ponto";
   communityModalEl.hidden = false;
 }
 
@@ -2442,6 +2553,8 @@ function closeCommunityModal() {
   if (!communityModalEl) return;
   communityModalEl.hidden = true;
   communityFormEl?.reset();
+  pendingCommunityCoords = null;
+  setCommunityPickerMode(false);
   editingCommunityId = null;
   editingCommunityPhotoUrl = null;
   clearDraftMarker();
@@ -2451,7 +2564,7 @@ function closeCommunityModal() {
 async function loadCommunityPoints() {
   const sb = initSupabaseClient();
   if (!sb) {
-    setCommunityStatus("Supabase não configurado para pontos colaborativos.");
+    setCommunityStatus("Supabase nÃ£o configurado para pontos colaborativos.");
     return;
   }
   const { data, error } = await sb
@@ -2461,7 +2574,7 @@ async function loadCommunityPoints() {
     .limit(1000);
 
   if (error) {
-    setCommunityStatus("Não foi possível carregar pontos colaborativos (verifique a tabela no Supabase).");
+    setCommunityStatus("NÃ£o foi possÃ­vel carregar pontos colaborativos (verifique a tabela no Supabase).");
     return;
   }
 
@@ -2483,19 +2596,19 @@ function renderMyCollaborations(items = []) {
       const createdAt = item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-";
       const category = COMMUNITY_CATEGORY_LABELS[item.category] || item.category || "Ponto";
       const photoTag = item.photo_url
-        ? `<img src="${item.photo_url}" alt="foto colaboração" style="width:100%;max-width:220px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #dce4ec;margin-top:8px">`
+        ? `<img src="${item.photo_url}" alt="foto colaboraÃ§Ã£o" style="width:100%;max-width:220px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #dce4ec;margin-top:8px">`
         : "";
       return `<article class="saved-route-item" data-collab-id="${item.id}">
         <h4 class="saved-route-title"><a class="collab-title-link" href="#collab/${item.id}">${item.name || "Ponto colaborativo"}</a></h4>
-        <div class="saved-route-meta">${category} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
-        <div class="saved-route-meta">${item.description || "Sem descrição."}</div>
+        <div class="saved-route-meta">${category} â€¢ ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
+        <div class="saved-route-meta">${item.description || "Sem descricao."}</div>
         <div class="saved-route-meta">Criado em: ${createdAt}</div>
         ${photoTag}
         <div class="saved-route-actions">
           <button type="button" data-action="open-detail">Detalhes</button>
           <button type="button" data-action="open-map">Ver no mapa</button>
           <button type="button" data-action="edit-collab">Editar</button>
-          <button type="button" data-action="delete-collab" class="danger" title="Excluir colaboração">&#128465;</button>
+          <button type="button" data-action="delete-collab" class="danger" title="Excluir colaboraÃ§Ã£o">&#128465;</button>
         </div>
       </article>`;
     })
@@ -2518,7 +2631,7 @@ async function refreshMyCollaborations() {
 
   if (error) {
     renderMyCollaborations([]);
-    setCommunityStatus("Não foi possível carregar suas colaborações.");
+    setCommunityStatus("NÃ£o foi possÃ­vel carregar suas colaboraÃ§Ãµes.");
     return;
   }
   myCollaborationsCache = data || [];
@@ -2534,10 +2647,10 @@ async function deleteMyCollaboration(collabId) {
     if (error) throw error;
     await loadCommunityPoints();
     await refreshMyCollaborations();
-    setCommunityStatus("Colaboração removida.");
+    setCommunityStatus("ColaboraÃ§Ã£o removida.");
   } catch (error) {
     console.error(error);
-    setCommunityStatus("Não foi possível excluir. Verifique a policy de delete no Supabase.");
+    setCommunityStatus("NÃ£o foi possÃ­vel excluir. Verifique a policy de delete no Supabase.");
   }
 }
 
@@ -2561,13 +2674,13 @@ async function saveCommunityPoint(event) {
   event.preventDefault();
   const sb = initSupabaseClient();
   if (!sb) {
-    setCommunityStatus("Supabase não configurado para salvar pontos.");
+    setCommunityStatus("Supabase nÃ£o configurado para salvar pontos.");
     return;
   }
   const lat = Number(communityLatEl?.value);
   const lon = Number(communityLonEl?.value);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    setCommunityStatus("Defina latitude e longitude válidas.");
+    setCommunityStatus("Defina latitude e longitude vÃ¡lidas.");
     return;
   }
   if (!communityNameEl?.value.trim()) {
@@ -2614,9 +2727,9 @@ async function saveCommunityPoint(event) {
     closeCommunityModal();
     await loadCommunityPoints();
     await refreshMyCollaborations();
-    setCommunityStatus(isEditing ? "Colaboração atualizada com sucesso." : "Ponto colaborativo salvo com sucesso.");
+    setCommunityStatus(isEditing ? "ColaboraÃ§Ã£o atualizada com sucesso." : "Ponto colaborativo salvo com sucesso.");
   } catch (_error) {
-    setCommunityStatus("Não foi possível salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
+    setCommunityStatus("NÃ£o foi possÃ­vel salvar o ponto. Confira a tabela, RLS e bucket no Supabase.");
   } finally {
     communitySaveBtn.disabled = false;
     communitySaveBtn.textContent = "Salvar ponto";
@@ -2629,16 +2742,17 @@ function setupCommunityUi() {
   refreshMyCollaborations();
 
   addCommunityPointBtn?.addEventListener("click", () => {
-    isAddingCommunityPoint = true;
+    pendingCommunityCoords = null;
+    closeCommunityModal();
+    setCommunityPickerMode(true);
     revealMapSection();
-    const center = map.getCenter();
-    openCommunityModal(Number(center.lat), Number(center.lng));
-    setCommunityStatus("Formulário aberto. Ajuste a posição clicando no mapa ou arrastando o alfinete.");
+    clearDraftMarker();
+    setCommunityStatus('Clique no mapa para marcar o ponto. Depois ajuste o alfinete e clique em "Escolher este ponto".');
   });
 
   useGpsPointBtn?.addEventListener("click", () => {
     if (!navigator.geolocation) {
-      setCommunityStatus("Seu navegador não liberou GPS.");
+      setCommunityStatus("Seu navegador nÃ£o liberou GPS.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -2646,23 +2760,35 @@ function setupCommunityUi() {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         map.setView([lat, lon], 12);
-        openCommunityModal(lat, lon);
-        setCommunityStatus("GPS obtido. Complete os dados e salve o ponto.");
+        pendingCommunityCoords = { lat: Number(lat), lon: Number(lon) };
+        setDraftMarker(lat, lon);
+        setCommunityPickerMode(true);
+        setCommunityConfirmState(true);
+        setCommunityStatus("Ponto marcado por GPS. Clique em 'Escolher este ponto' para continuar.");
       },
-      () => setCommunityStatus("Não consegui ler seu GPS agora. Tente novamente ou clique no mapa."),
+      () => setCommunityStatus("NÃ£o consegui ler seu GPS agora. Tente novamente ou clique no mapa."),
       { enableHighAccuracy: true, timeout: 12000 }
     );
   });
 
+  confirmCommunityPointBtn?.addEventListener("click", () => {
+    if (!pendingCommunityCoords) {
+      setCommunityStatus("Marque um ponto no mapa antes de continuar.");
+      return;
+    }
+    setCommunityPickerMode(false);
+    openCommunityModal(Number(pendingCommunityCoords.lat), Number(pendingCommunityCoords.lon));
+    setCommunityStatus("Agora preencha os dados do ponto e clique em salvar.");
+  });
+
   map.on("click", (event) => {
     const { lat, lng } = event.latlng;
-    if (isAddingCommunityPoint || (communityModalEl && !communityModalEl.hidden)) {
+    if (isAddingCommunityPoint) {
       setDraftMarker(lat, lng);
-      if (communityLatEl) communityLatEl.value = Number(lat).toFixed(6);
-      if (communityLonEl) communityLonEl.value = Number(lng).toFixed(6);
-      if (communityModalEl && communityModalEl.hidden) openCommunityModal(lat, lng);
-      setCommunityStatus("Coordenada atualizada no formulário.");
-      isAddingCommunityPoint = false;
+      pendingCommunityCoords = { lat: Number(lat), lon: Number(lng) };
+      setCommunityConfirmState(true);
+      setCommunityStatus("Ponto marcado. Se quiser, arraste o alfinete e clique em \"Escolher este ponto\".");
+      return;
     }
   });
 
@@ -2701,16 +2827,16 @@ function setupCommunityUi() {
     if (button.dataset.action === "edit-collab") {
       const item = communityPoints.find((point) => point.id === collabId);
       if (!item) {
-        setCommunityStatus("Não encontrei a colaboração para editar.");
+        setCommunityStatus("NÃ£o encontrei a colaboraÃ§Ã£o para editar.");
         return;
       }
       openCommunityModal(Number(item.lat), Number(item.lon), item);
-      setCommunityStatus("Edite os campos e salve as alterações.");
+      setCommunityStatus("Edite os campos e salve as alteraÃ§Ãµes.");
       return;
     }
 
     if (button.dataset.action === "delete-collab") {
-      const confirmDelete = window.confirm("Deseja excluir esta colaboração?");
+      const confirmDelete = window.confirm("Deseja excluir esta colaboraÃ§Ã£o?");
       if (!confirmDelete) return;
       await deleteMyCollaboration(collabId);
     }
@@ -2734,11 +2860,11 @@ async function generatePlan() {
   await rememberWaypointSearches(destinations);
 
   if (!selectedOrigin || !destinations.length) {
-    warnEl.textContent = "Informe origem e pelo menos um destino válido para calcular a rota.";
+    warnEl.textContent = "Informe origem e pelo menos um destino vÃ¡lido para calcular a rota.";
     return;
   }
 
-  let stage = "início";
+  let stage = "inÃ­cio";
   try {
     const waypoints = [selectedOrigin, ...destinations];
     const finalDestination = waypoints[waypoints.length - 1];
@@ -2862,7 +2988,7 @@ async function generatePlan() {
     if (!boundaries.length || boundaries[0] > minGap) boundaries.unshift(0);
     if (Math.abs(boundaries[boundaries.length - 1] - totalMetric) > minGap) boundaries.push(totalMetric);
 
-    stage = "pontos diários";
+    stage = "pontos diÃ¡rios";
     const boundaryPoints = boundaries.map((targetValue) => pointInfoAtTarget(routeCoords, activeCumulative, targetValue));
     stage = "processamento dos pontos";
     const dayMetas = await Promise.all(boundaryPoints.map(async (point, index) => {
@@ -2898,7 +3024,7 @@ async function generatePlan() {
       );
       let borderCrossing = countryChangedOnEnds;
       let borderText = countryChangedOnEnds
-        ? `Saída de ${COUNTRY_NAMES[fromMeta.countryCode] || fromMeta.countryCode} e entrada em ${COUNTRY_NAMES[toMeta.countryCode] || toMeta.countryCode}.`
+        ? `SaÃ­da de ${COUNTRY_NAMES[fromMeta.countryCode] || fromMeta.countryCode} e entrada em ${COUNTRY_NAMES[toMeta.countryCode] || toMeta.countryCode}.`
         : "";
       let borderCoord = null;
       if (countryChangedOnEnds) {
@@ -2909,8 +3035,8 @@ async function generatePlan() {
         if (crossing) {
           borderCoord = crossing.coord;
           borderText = crossing.name
-            ? `${crossing.name}: saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`
-            : `Saída de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
+            ? `${crossing.name}: saÃ­da de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`
+            : `SaÃ­da de ${crossing.fromCountry} e entrada em ${crossing.toCountry}.`;
         }
       }
       days.push({
@@ -2934,7 +3060,7 @@ async function generatePlan() {
     }
     daysOutEl.innerHTML = days
       .map(
-        (day) => `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(styleEl.value, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div></article>`
+        (day) => `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(styleEl.value, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div></article>`
       )
       .join("");
     daysOutEl.innerHTML = days
@@ -2942,7 +3068,7 @@ async function generatePlan() {
         const borderHtml = day.borderCrossing
           ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
           : "";
-        return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(styleEl.value, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+        return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(styleEl.value, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
       })
       .join("");
 
@@ -2950,7 +3076,7 @@ async function generatePlan() {
     currentPlanSnapshot = {
       id: String(Date.now()),
       createdAt: Date.now(),
-      name: `${waypoints[0].name} → ${waypoints[waypoints.length - 1].name}`,
+      name: `${waypoints[0].name} â†’ ${waypoints[waypoints.length - 1].name}`,
       origin: waypoints[0].name,
       destinations: waypoints.slice(1).map((point) => point.name),
       style: styleEl.value,
@@ -2966,7 +3092,7 @@ async function generatePlan() {
       boundaryPoints,
       dynamicRoutePois: []
     };
-    currentPlanSnapshot.name = `${currentPlanSnapshot.origin} → ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`;
+    currentPlanSnapshot.name = `${currentPlanSnapshot.origin} â†’ ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`;
     updateRouteFocusHeader(currentPlanSnapshot);
     localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
@@ -2979,14 +3105,14 @@ async function generatePlan() {
     openRouteInFullView(pendingOpenRouteContext || "planner");
     pendingOpenRouteContext = null;
     if (false && !dynamicRoutePois.length) {
-      warnEl.textContent = "Rota gerada. Não encontrei postos/hotéis/campings próximos neste momento.";
+      warnEl.textContent = "Rota gerada. NÃ£o encontrei postos/hotÃ©is/campings prÃ³ximos neste momento.";
     }
   } catch (error) {
     console.error("Erro ao gerar rota:", error);
     if (planActionsEl) planActionsEl.style.display = "none";
     exitRouteFocusMode();
     const detail = error?.message ? ` (${error.message})` : "";
-    warnEl.textContent = `Não foi possível calcular a rota agora (etapa: ${stage})${detail}. Tente novamente em alguns segundos.`;
+    warnEl.textContent = `NÃ£o foi possÃ­vel calcular a rota agora (etapa: ${stage})${detail}. Tente novamente em alguns segundos.`;
   }
 }
 
@@ -3018,7 +3144,7 @@ saveRouteBtn?.addEventListener("click", saveCurrentRoute);
 routeSaveBtn?.addEventListener("click", saveCurrentRoute);
 viewRouteBtn?.addEventListener("click", () => {
   if (!currentPlanSnapshot) {
-    warnEl.textContent = "Gere uma rota antes de abrir a visualização.";
+    warnEl.textContent = "Gere uma rota antes de abrir a visualizaÃ§Ã£o.";
     return;
   }
   openRouteInFullView("planner");
@@ -3063,7 +3189,7 @@ if (savedRoutesListEl) {
 
 const CATEGORY_LABELS = {
   fuel_station: "Postos",
-  hotel: "Hotéis",
+  hotel: "HotÃ©is",
   camping: "Campings"
 };
 
@@ -3088,7 +3214,7 @@ Object.entries(CATEGORY_LABELS).forEach(([key, label]) => {
 if (catBar) {
   const collabButton = document.createElement("button");
   collabButton.className = `pill ${showCommunityPoints ? "active" : ""}`;
-  collabButton.textContent = "Colaborações";
+  collabButton.textContent = "ColaboraÃ§Ãµes";
   collabButton.onclick = () => {
     showCommunityPoints = !showCommunityPoints;
     collabButton.classList.toggle("active", showCommunityPoints);
@@ -3110,14 +3236,14 @@ let activeStage = STAGES[0].id;
 
 function renderStages() {
   if (!stageBtns || !stTitle || !stSum || !stMeta || !stMust || !stSleep || !stTips) return;
-  stageBtns.innerHTML = STAGES.map((stage) => `<button class="stbtn ${stage.id === activeStage ? "active" : ""}" data-stage="${stage.id}">${stage.title}<br><small>${stage.km} km • ${stage.time}</small></button>`).join("");
+  stageBtns.innerHTML = STAGES.map((stage) => `<button class="stbtn ${stage.id === activeStage ? "active" : ""}" data-stage="${stage.id}">${stage.title}<br><small>${stage.km} km â€¢ ${stage.time}</small></button>`).join("");
   const stage = STAGES.find((item) => item.id === activeStage);
   stTitle.textContent = stage.title;
   stSum.textContent = stage.sum;
-  stMeta.textContent = `${stage.km} km • ${stage.time}`;
-  stMust.textContent = stage.must.join(" • ");
-  stSleep.textContent = stage.sleep.join(" • ");
-  stTips.textContent = stage.tips.join(" • ");
+  stMeta.textContent = `${stage.km} km â€¢ ${stage.time}`;
+  stMust.textContent = stage.must.join(" â€¢ ");
+  stSleep.textContent = stage.sleep.join(" â€¢ ");
+  stTips.textContent = stage.tips.join(" â€¢ ");
 }
 if (stageBtns) {
   stageBtns.addEventListener("click", (event) => {
@@ -3165,64 +3291,64 @@ const PHOTO_FALLBACKS = {
 };
 
 const DESCRIPTION_OVERRIDES = {
-  "puerto-madryn": "Base para Península Valdés, vida selvagem e parada estratégica antes de seguir ao sul.",
-  ushuaia: "Fim do mundo com atrações clássicas, trilhas, canal e ótima base para explorar a Terra do Fogo.",
-  torres: "Parque incrível com paisagens únicas; fronteiras e clima exigem atenção extra no planejamento.",
-  calafate: "Base do Perito Moreno, com mini trekking disputado e opções de passeio, hospedagem ou wild camping.",
-  chalten: "Destino ideal para trekking e mirantes do Fitz Roy, com trilhas clássicas e perfil mais aventureiro.",
-  bariloche: "Região de lagos e montanhas com roteiros cênicos, boa estrutura e muitas atividades ao ar livre.",
-  "buenos-aires": "Grande etapa urbana da viagem, ótima para descanso, organização e experiências culturais."
+  "puerto-madryn": "Base para PenÃ­nsula ValdÃ©s, vida selvagem e parada estratÃ©gica antes de seguir ao sul.",
+  ushuaia: "Fim do mundo com atraÃ§Ãµes clÃ¡ssicas, trilhas, canal e Ã³tima base para explorar a Terra do Fogo.",
+  torres: "Parque incrÃ­vel com paisagens Ãºnicas; fronteiras e clima exigem atenÃ§Ã£o extra no planejamento.",
+  calafate: "Base do Perito Moreno, com mini trekking disputado e opÃ§Ãµes de passeio, hospedagem ou wild camping.",
+  chalten: "Destino ideal para trekking e mirantes do Fitz Roy, com trilhas clÃ¡ssicas e perfil mais aventureiro.",
+  bariloche: "RegiÃ£o de lagos e montanhas com roteiros cÃªnicos, boa estrutura e muitas atividades ao ar livre.",
+  "buenos-aires": "Grande etapa urbana da viagem, Ã³tima para descanso, organizaÃ§Ã£o e experiÃªncias culturais."
 };
 
 const EBOOK_CHAPTERS = {
   "puerto-madryn": {
-    chapter: "Capítulo Puerto Madryn",
+    chapter: "CapÃ­tulo Puerto Madryn",
     bestSeason: "Setembro a dezembro",
-    highlights: ["Península Valdés", "avistagem de fauna marinha", "costeira patagônica"],
+    highlights: ["PenÃ­nsula ValdÃ©s", "avistagem de fauna marinha", "costeira patagÃ´nica"],
     logistics: ["Boa estrutura urbana para abastecimento", "base para passeios de dia inteiro", "ideal para pausa longa na rota"],
-    tips: ["Reserve passeios de fauna com antecedência", "leve corta-vento para atividades costeiras", "prefira sair cedo para bate-voltas"]
+    tips: ["Reserve passeios de fauna com antecedÃªncia", "leve corta-vento para atividades costeiras", "prefira sair cedo para bate-voltas"]
   },
   ushuaia: {
-    chapter: "Capítulo Ushuaia",
-    bestSeason: "Novembro a março",
+    chapter: "CapÃ­tulo Ushuaia",
+    bestSeason: "Novembro a marÃ§o",
     highlights: ["Canal Beagle", "Parque Nacional Tierra del Fuego", "Fim do Mundo"],
-    logistics: ["Cidade base com boa rede hoteleira", "ponto final clássico da ida", "ótima para revisão do carro"],
-    tips: ["Verifique previsão de vento e frio", "reserve navegação no Beagle", "deixe dias extras para clima variável"]
+    logistics: ["Cidade base com boa rede hoteleira", "ponto final clÃ¡ssico da ida", "Ã³tima para revisÃ£o do carro"],
+    tips: ["Verifique previsÃ£o de vento e frio", "reserve navegaÃ§Ã£o no Beagle", "deixe dias extras para clima variÃ¡vel"]
   },
   torres: {
-    chapter: "Capítulo Torres del Paine",
+    chapter: "CapÃ­tulo Torres del Paine",
     bestSeason: "Outubro a abril",
-    highlights: ["Mirantes das torres", "lagos e trilhas cênicas", "paisagem ícone da Patagônia chilena"],
+    highlights: ["Mirantes das torres", "lagos e trilhas cÃªnicas", "paisagem Ã­cone da PatagÃ´nia chilena"],
     logistics: ["Base comum em Puerto Natales", "controle de documentos de fronteira", "parque com infraestrutura organizada"],
-    tips: ["Compre ingressos oficiais antecipadamente", "leve roupa por camadas", "evite dirigir longos trechos noturnos na região"]
+    tips: ["Compre ingressos oficiais antecipadamente", "leve roupa por camadas", "evite dirigir longos trechos noturnos na regiÃ£o"]
   },
   calafate: {
-    chapter: "Capítulo El Calafate",
-    bestSeason: "Outubro a março",
+    chapter: "CapÃ­tulo El Calafate",
+    bestSeason: "Outubro a marÃ§o",
     highlights: ["Glaciar Perito Moreno", "Lago Argentino", "passeios de glaciar"],
-    logistics: ["Hub de hospedagem e serviços", "base logística para glaciares", "boa oferta de mercados e combustível"],
+    logistics: ["Hub de hospedagem e serviÃ§os", "base logÃ­stica para glaciares", "boa oferta de mercados e combustÃ­vel"],
     tips: ["Compre ingresso do parque antecipado", "considere passeio de barco no glaciar", "planeje pelo menos 2 noites"]
   },
   chalten: {
-    chapter: "Capítulo El Chaltén",
-    bestSeason: "Novembro a março",
+    chapter: "CapÃ­tulo El ChaltÃ©n",
+    bestSeason: "Novembro a marÃ§o",
     highlights: ["Fitz Roy", "trilhas e mirantes", "vibe de vila de montanha"],
-    logistics: ["Base principal para trekking", "acesso por estrada cênica", "estrutura menor que Calafate"],
-    tips: ["Saia cedo para trilhas longas", "acompanhe vento e chuva", "leve água e alimentação para os percursos"]
+    logistics: ["Base principal para trekking", "acesso por estrada cÃªnica", "estrutura menor que Calafate"],
+    tips: ["Saia cedo para trilhas longas", "acompanhe vento e chuva", "leve Ã¡gua e alimentaÃ§Ã£o para os percursos"]
   },
   bariloche: {
-    chapter: "Capítulo Bariloche",
-    bestSeason: "Ano todo (neve no inverno, lagos no verão)",
+    chapter: "CapÃ­tulo Bariloche",
+    bestSeason: "Ano todo (neve no inverno, lagos no verÃ£o)",
     highlights: ["Circuito Chico", "Cerro Catedral", "lagos andinos"],
     logistics: ["Cidade com excelente estrutura", "boa etapa de descanso", "ponto forte para atividades ao ar livre"],
-    tips: ["Distribua passeios por zonas", "evite horários de pico nas saídas", "reserve com antecedência em alta temporada"]
+    tips: ["Distribua passeios por zonas", "evite horÃ¡rios de pico nas saÃ­das", "reserve com antecedÃªncia em alta temporada"]
   },
   "buenos-aires": {
-    chapter: "Capítulo Buenos Aires",
-    bestSeason: "Março a maio e setembro a novembro",
-    highlights: ["cultura e gastronomia", "bairros clássicos", "etapa urbana da viagem"],
-    logistics: ["Entrada e saída estratégica no roteiro", "ampla oferta de serviços", "bom ponto para reorganizar a jornada"],
-    tips: ["Planeje estacionamento com antecedência", "considere hospedagem com garagem", "aproveite para manutenção leve e compras"]
+    chapter: "CapÃ­tulo Buenos Aires",
+    bestSeason: "MarÃ§o a maio e setembro a novembro",
+    highlights: ["cultura e gastronomia", "bairros clÃ¡ssicos", "etapa urbana da viagem"],
+    logistics: ["Entrada e saÃ­da estratÃ©gica no roteiro", "ampla oferta de serviÃ§os", "bom ponto para reorganizar a jornada"],
+    tips: ["Planeje estacionamento com antecedÃªncia", "considere hospedagem com garagem", "aproveite para manutenÃ§Ã£o leve e compras"]
   }
 };
 
@@ -3248,9 +3374,9 @@ function renderPlacesGrid() {
             <div class="tiny">${poi.category}</div>
             <h4>${poi.name}</h4>
             <p class="tiny">${poi.description}</p>
-            <p class="tiny">${poi.city} • <a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a></p>
+            <p class="tiny">${poi.city} â€¢ <a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a></p>
             <div class="place-actions">
-              <a class="link-btn" href="./local.html?place=${poi.id}">Abrir página</a>
+              <a class="link-btn" href="./local.html?place=${poi.id}">Abrir pÃ¡gina</a>
             </div>
           </div>
         </article>`
@@ -3267,7 +3393,7 @@ function renderLocalDetail(placeId) {
     <article class="local-detail">
       <header class="local-hero" style="background:linear-gradient(120deg,#102723cc,#10272355),url('${poi.image}') center/cover">
         <div class="local-hero-content">
-          <span class="badge">capítulo do e-book</span>
+          <span class="badge">capÃ­tulo do e-book</span>
           <h2>${poi.name}</h2>
           <p>${chapter.chapter}</p>
           <div class="local-meta">
@@ -3280,7 +3406,7 @@ function renderLocalDetail(placeId) {
 
       <div class="local-grid">
         <section class="local-block" style="grid-column:1 / -1">
-          <p class="tiny"><a href="${poi.maps}" target="_blank" rel="noreferrer">Abrir localização no Google Maps</a></p>
+          <p class="tiny"><a href="${poi.maps}" target="_blank" rel="noreferrer">Abrir localizaÃ§Ã£o no Google Maps</a></p>
         </section>
       </div>
     </article>
@@ -3450,6 +3576,7 @@ expenseTripBackBtn?.addEventListener("click", () => {
   window.location.hash = "#expenses";
 });
 bindMobileMenu();
+startTextRepairObserver();
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
 refreshSavedRoutes();
@@ -3463,7 +3590,10 @@ function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
       const borderHtml = day.borderCrossing
         ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} → ${day.to}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
     })
     .join("");
 }
+
+
+
