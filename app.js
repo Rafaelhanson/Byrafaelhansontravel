@@ -555,12 +555,15 @@ let maxPoiDistance = 999;
 let currentPlanSnapshot = null;
 let routesStorageKeyCache = null;
 let expensesStorageKeyCache = null;
+let routesStorageKeyCacheEmail = null;
+let expensesStorageKeyCacheEmail = null;
 let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
 let currentUserCache = null;
 let cloudDataCache = null;
 let cloudDataLoadedForUser = null;
 let lastCloudSyncError = "";
+const volatileStorageFallback = new Map();
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
@@ -654,6 +657,42 @@ function initSupabaseClient() {
   return supabaseClient;
 }
 
+function safeSetStorage(key, value) {
+  const text = String(value);
+  try {
+    localStorage.setItem(key, text);
+    return "local";
+  } catch (_error) {}
+  try {
+    sessionStorage.setItem(key, text);
+    return "session";
+  } catch (_error) {}
+  volatileStorageFallback.set(key, text);
+  return "memory";
+}
+
+function safeGetStorage(key) {
+  try {
+    const value = localStorage.getItem(key);
+    if (value !== null) return value;
+  } catch (_error) {}
+  try {
+    const value = sessionStorage.getItem(key);
+    if (value !== null) return value;
+  } catch (_error) {}
+  return volatileStorageFallback.has(key) ? volatileStorageFallback.get(key) : null;
+}
+
+function safeRemoveStorage(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (_error) {}
+  try {
+    sessionStorage.removeItem(key);
+  } catch (_error) {}
+  volatileStorageFallback.delete(key);
+}
+
 async function getSupabaseSession() {
   const sb = initSupabaseClient();
   if (!sb || !sb.auth || typeof sb.auth.getSession !== "function") return null;
@@ -708,13 +747,13 @@ async function queuePendingCloudField(field, value) {
   const key = getPendingSyncStorageKey(email);
   let payload = {};
   try {
-    payload = JSON.parse(localStorage.getItem(key) || "{}") || {};
+    payload = JSON.parse(safeGetStorage(key) || "{}") || {};
   } catch (_error) {
     payload = {};
   }
   payload[field] = normalizeArrayData(value);
   payload.updatedAt = new Date().toISOString();
-  localStorage.setItem(key, JSON.stringify(payload));
+  safeSetStorage(key, JSON.stringify(payload));
 }
 
 async function flushPendingCloudSync() {
@@ -722,7 +761,7 @@ async function flushPendingCloudSync() {
   const key = getPendingSyncStorageKey(email);
   let payload = {};
   try {
-    payload = JSON.parse(localStorage.getItem(key) || "{}") || {};
+    payload = JSON.parse(safeGetStorage(key) || "{}") || {};
   } catch (_error) {
     payload = {};
   }
@@ -735,7 +774,7 @@ async function flushPendingCloudSync() {
     if (!ok) return false;
   }
 
-  localStorage.removeItem(key);
+  safeRemoveStorage(key);
   return true;
 }
 
@@ -1207,15 +1246,9 @@ async function shareRoute(route) {
 }
 
 async function getRoutesStorageKey() {
-  if (routesStorageKeyCache) return routesStorageKeyCache;
-  let email = "guest";
-  try {
-    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
-      const session = await window.AppAuth.getSession();
-      const userEmail = session?.user?.email?.trim().toLowerCase();
-      if (userEmail) email = userEmail;
-    }
-  } catch (_error) {}
+  const email = await getCurrentUserEmail();
+  if (routesStorageKeyCache && routesStorageKeyCacheEmail === email) return routesStorageKeyCache;
+  routesStorageKeyCacheEmail = email;
   routesStorageKeyCache = `myRoutes:${email}`;
   return routesStorageKeyCache;
 }
@@ -1224,7 +1257,7 @@ async function readSavedRoutes() {
   const key = await getRoutesStorageKey();
   let localRoutes = [];
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeGetStorage(key);
     if (!raw) localRoutes = [];
     const parsed = JSON.parse(raw);
     localRoutes = Array.isArray(parsed) ? parsed : [];
@@ -1242,7 +1275,7 @@ async function readSavedRoutes() {
     await writeCloudUserDataField("routes", merged);
   }
   if (!arraysEqualByJson(localRoutes, merged)) {
-    localStorage.setItem(key, JSON.stringify(merged));
+    safeSetStorage(key, JSON.stringify(merged));
   }
 
   return merged;
@@ -1251,22 +1284,16 @@ async function readSavedRoutes() {
 async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
   const safeRoutes = normalizeArrayData(routes);
-  localStorage.setItem(key, JSON.stringify(safeRoutes));
+  safeSetStorage(key, JSON.stringify(safeRoutes));
   const synced = await writeCloudUserDataField("routes", safeRoutes);
   if (!synced) await queuePendingCloudField("routes", safeRoutes);
   return synced;
 }
 
 async function getExpensesStorageKey() {
-  if (expensesStorageKeyCache) return expensesStorageKeyCache;
-  let email = "guest";
-  try {
-    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
-      const session = await window.AppAuth.getSession();
-      const userEmail = session?.user?.email?.trim().toLowerCase();
-      if (userEmail) email = userEmail;
-    }
-  } catch (_error) {}
+  const email = await getCurrentUserEmail();
+  if (expensesStorageKeyCache && expensesStorageKeyCacheEmail === email) return expensesStorageKeyCache;
+  expensesStorageKeyCacheEmail = email;
   expensesStorageKeyCache = `travelExpenses:${email}`;
   return expensesStorageKeyCache;
 }
@@ -1275,7 +1302,7 @@ async function readTravelExpenses() {
   const key = await getExpensesStorageKey();
   let localTrips = [];
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeGetStorage(key);
     if (!raw) localTrips = [];
     const parsed = JSON.parse(raw);
     localTrips = Array.isArray(parsed) ? parsed : [];
@@ -1293,7 +1320,7 @@ async function readTravelExpenses() {
     await writeCloudUserDataField("trips", merged);
   }
   if (!arraysEqualByJson(localTrips, merged)) {
-    localStorage.setItem(key, JSON.stringify(merged));
+    safeSetStorage(key, JSON.stringify(merged));
   }
 
   return merged;
@@ -1302,7 +1329,7 @@ async function readTravelExpenses() {
 async function writeTravelExpenses(trips) {
   const key = await getExpensesStorageKey();
   const safeTrips = normalizeArrayData(trips);
-  localStorage.setItem(key, JSON.stringify(safeTrips));
+  safeSetStorage(key, JSON.stringify(safeTrips));
   const synced = await writeCloudUserDataField("trips", safeTrips);
   if (!synced) await queuePendingCloudField("trips", safeTrips);
   return synced;
