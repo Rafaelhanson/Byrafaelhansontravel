@@ -578,6 +578,7 @@ let myCollaborationsCache = [];
 let routeOpenContext = "planner";
 let pendingOpenRouteContext = null;
 let mapBackTargetHash = null;
+let daysInputTouchedByUser = false;
 
 const ROUTE_CITY_MARKER_NAMES = new Set([
   "Erechim", "Passo Fundo", "Santa Maria", "Uruguaiana", "Paso de los Libres", "Itaqui", "Sao Borja",
@@ -1212,6 +1213,7 @@ function clearPlannerData() {
   dest4Input.value = "";
   dest5Input.value = "";
   daysInputEl.value = "";
+  daysInputTouchedByUser = false;
   dayLimitModeEl.value = "hours";
   updateDayLimitUi();
   dayLimitValueEl.value = "";
@@ -1221,7 +1223,7 @@ function clearPlannerData() {
   sumDaysEl.textContent = "-";
   daysOutEl.innerHTML = "";
   warnEl.textContent = "";
-  localStorage.removeItem("lastPlan");
+  safeRemoveStorage("lastPlan");
   if (planActionsEl) planActionsEl.style.display = "none";
   if (mapSectionEl) mapSectionEl.hidden = true;
 }
@@ -1817,6 +1819,12 @@ bindAutocomplete(originInput, originList, "origin", (value) => (selectedOrigin =
 if (dayLimitModeEl) {
   dayLimitModeEl.addEventListener("change", updateDayLimitUi);
   updateDayLimitUi();
+}
+
+if (daysInputEl) {
+  daysInputEl.addEventListener("input", () => {
+    daysInputTouchedByUser = true;
+  });
 }
 
 function normalizeName(value) {
@@ -2782,8 +2790,8 @@ async function fetchDrivingRoute(from, to) {
   ];
   let lastError = null;
   const queryVariants = [
-    "overview=full&geometries=geojson&steps=false",
     "overview=full&geometries=geojson&steps=true&annotations=distance,duration",
+    "overview=full&geometries=geojson&steps=false",
     "overview=simplified&geometries=geojson&steps=false"
   ];
   for (const base of routeServers) {
@@ -2797,7 +2805,16 @@ async function fetchDrivingRoute(from, to) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (!data.routes?.length) throw new Error("Sem rota");
-        return data.routes[0];
+        const route = data.routes[0];
+        const coords = route?.geometry?.coordinates || [];
+        const straightLineKm = haversineKm([from.lat, from.lon], [to.lat, to.lon]);
+        const routeDistanceKm = (route?.distance || 0) / 1000;
+        const hasPoorGeometry = coords.length < 4 && straightLineKm > 120;
+        const hasSuspiciousDistance = routeDistanceKm > 0 && straightLineKm > 0 && routeDistanceKm / straightLineKm < 1.02;
+        if ((hasPoorGeometry || hasSuspiciousDistance) && straightLineKm > 180) {
+          throw new Error("Geometria de rota insuficiente para este trecho");
+        }
+        return route;
       } catch (error) {
         lastError = error;
       } finally {
@@ -3385,7 +3402,7 @@ async function generatePlan() {
     sumTimeEl.textContent = `${totalHours.toFixed(1)} h`;
 
     const requestedDays = Number(daysInputEl?.value);
-    const hasRequestedDays = Number.isFinite(requestedDays) && requestedDays > 0;
+    const hasRequestedDays = daysInputTouchedByUser && Number.isFinite(requestedDays) && requestedDays > 0;
     const limitMode = dayLimitModeEl?.value === "hours" ? "hours" : "km";
     const requestedLimit = Number(dayLimitValueEl?.value);
     const hasRequestedLimit = Number.isFinite(requestedLimit) && requestedLimit > 0;
@@ -3505,9 +3522,6 @@ async function generatePlan() {
     }
 
     sumDaysEl.textContent = String(days.length);
-    if (daysInputEl && (!hasRequestedDays || Number(daysInputEl.value) !== days.length)) {
-      daysInputEl.value = String(days.length);
-    }
     daysOutEl.innerHTML = days
       .map(
         (day) => `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(styleEl.value, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div></article>`
@@ -3544,12 +3558,12 @@ async function generatePlan() {
     };
     currentPlanSnapshot.name = normalizeUiText(`${currentPlanSnapshot.origin} → ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`);
     updateRouteFocusHeader(currentPlanSnapshot);
-    localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
+    safeSetStorage("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
     syncMapViewport();
     const stayStops = boundaryPoints.slice(1).map((point) => point.coord);
     dynamicRoutePois = [];
-    fetchRouteAmenities(routeCoords, stayStops).then((pois) => { dynamicRoutePois = pois; if (currentPlanSnapshot) { currentPlanSnapshot.dynamicRoutePois = pois; localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot)); } drawPoiMarkers(); }).catch(() => {});
+    fetchRouteAmenities(routeCoords, stayStops).then((pois) => { dynamicRoutePois = pois; if (currentPlanSnapshot) { currentPlanSnapshot.dynamicRoutePois = pois; safeSetStorage("lastPlan", JSON.stringify(currentPlanSnapshot)); } drawPoiMarkers(); }).catch(() => {});
     drawPoiMarkers();
     if (planActionsEl) planActionsEl.style.display = "flex";
     openRouteInFullView(pendingOpenRouteContext || "planner");
