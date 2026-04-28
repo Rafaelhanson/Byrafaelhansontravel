@@ -59,6 +59,25 @@ function repairVisibleText(root = document.body) {
   });
 }
 
+function normalizeUiText(value) {
+  if (value === null || value === undefined) return "";
+  return repairMojibake(String(value))
+    .replace(/â†’/g, "→")
+    .replace(/â€¢/g, "•")
+    .replace(/Ã\s*s/g, "às")
+    .replace(/\s*->\s*/g, " → ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function promptNormalized(message, defaultValue = "") {
+  return window.prompt(normalizeUiText(message), normalizeUiText(defaultValue));
+}
+
+function confirmNormalized(message) {
+  return window.confirm(normalizeUiText(message));
+}
+
 function startTextRepairObserver() {
   if (!document.body || window.__textRepairObserverStarted) return;
   window.__textRepairObserverStarted = true;
@@ -539,6 +558,7 @@ let selectedExpenseTripId = null;
 let currentUserCache = null;
 let cloudDataCache = null;
 let cloudDataLoadedForUser = null;
+let lastCloudSyncError = "";
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
@@ -632,6 +652,17 @@ function initSupabaseClient() {
   return supabaseClient;
 }
 
+async function getSupabaseSession() {
+  const sb = initSupabaseClient();
+  if (!sb || !sb.auth || typeof sb.auth.getSession !== "function") return null;
+  try {
+    const { data } = await sb.auth.getSession();
+    return data?.session || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function getCurrentSessionUser() {
   if (currentUserCache) return currentUserCache;
   try {
@@ -642,31 +673,68 @@ async function getCurrentSessionUser() {
       return user;
     }
   } catch (_error) {}
+  const sbSession = await getSupabaseSession();
+  if (sbSession?.user) {
+    currentUserCache = sbSession.user;
+    return sbSession.user;
+  }
   return null;
 }
 
 async function getCurrentUserEmail() {
   const cachedUser = await getCurrentSessionUser();
   if (cachedUser?.email) return cachedUser.email.trim().toLowerCase();
-  try {
-    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
-      const session = await window.AppAuth.getSession();
-      return (session?.user?.email || "usuario@sem-email").trim().toLowerCase();
-    }
-  } catch (_error) {}
+  const sbSession = await getSupabaseSession();
+  if (sbSession?.user?.email) return sbSession.user.email.trim().toLowerCase();
   return "usuario@sem-email";
 }
 
 async function getCurrentUserId() {
   const cachedUser = await getCurrentSessionUser();
   if (cachedUser?.id) return cachedUser.id;
-  try {
-    if (window.AppAuth && typeof window.AppAuth.getSession === "function") {
-      const session = await window.AppAuth.getSession();
-      return session?.user?.id || null;
-    }
-  } catch (_error) {}
+  const sbSession = await getSupabaseSession();
+  if (sbSession?.user?.id) return sbSession.user.id;
   return null;
+}
+
+function getPendingSyncStorageKey(email = "guest") {
+  return `pendingCloudSync:${String(email || "guest").trim().toLowerCase()}`;
+}
+
+async function queuePendingCloudField(field, value) {
+  const email = await getCurrentUserEmail();
+  const key = getPendingSyncStorageKey(email);
+  let payload = {};
+  try {
+    payload = JSON.parse(localStorage.getItem(key) || "{}") || {};
+  } catch (_error) {
+    payload = {};
+  }
+  payload[field] = normalizeArrayData(value);
+  payload.updatedAt = new Date().toISOString();
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+async function flushPendingCloudSync() {
+  const email = await getCurrentUserEmail();
+  const key = getPendingSyncStorageKey(email);
+  let payload = {};
+  try {
+    payload = JSON.parse(localStorage.getItem(key) || "{}") || {};
+  } catch (_error) {
+    payload = {};
+  }
+
+  const fields = ["routes", "trips"].filter((field) => Array.isArray(payload[field]));
+  if (!fields.length) return true;
+
+  for (const field of fields) {
+    const ok = await writeCloudUserDataField(field, payload[field]);
+    if (!ok) return false;
+  }
+
+  localStorage.removeItem(key);
+  return true;
 }
 
 function getUserDataTableName() {
@@ -736,7 +804,10 @@ async function readCloudUserData() {
 async function writeCloudUserDataField(field, value) {
   const sb = initSupabaseClient();
   const userId = await getCurrentUserId();
-  if (!sb || !userId) return false;
+  if (!sb || !userId) {
+    lastCloudSyncError = "Sem sessão autenticada no Supabase.";
+    return false;
+  }
 
   const current = (await readCloudUserData()) || {
     user_id: userId,
@@ -754,11 +825,16 @@ async function writeCloudUserDataField(field, value) {
   try {
     const table = getUserDataTableName();
     const { error } = await sb.from(table).upsert(payload, { onConflict: "user_id" });
-    if (error) return false;
+    if (error) {
+      lastCloudSyncError = error.message || "Falha ao salvar no Supabase.";
+      return false;
+    }
     cloudDataCache = payload;
     cloudDataLoadedForUser = userId;
+    lastCloudSyncError = "";
     return true;
   } catch (_error) {
+    lastCloudSyncError = "Erro de conexão ao salvar no Supabase.";
     return false;
   }
 }
@@ -919,7 +995,7 @@ function renderCollabDetail(item) {
     setCommunityStatus("Edite os campos e salve as alteraÃ§Ãµes.");
   });
   delBtn?.addEventListener("click", async () => {
-    const confirmDelete = window.confirm("Deseja excluir esta colaboraÃ§Ã£o?");
+    const confirmDelete = confirmNormalized("Deseja excluir esta colaboração?");
     if (!confirmDelete) return;
     await deleteMyCollaboration(item.id);
     window.location.hash = "#my-collabs";
@@ -1095,12 +1171,12 @@ function updateRouteFocusHeader(route) {
     routeFocusMetaEl.textContent = "";
     return;
   }
-  const destinationText = (route.destinations || []).join(" - ");
+  const destinationText = normalizeUiText((route.destinations || []).join(" - "));
   const createdAtDate = new Date(route.createdAt || Date.now());
   const createdDate = createdAtDate.toLocaleDateString("pt-BR");
   const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  routeFocusTitleEl.textContent = `${route.origin || "-"} -> ${destinationText || "-"}`;
-  routeFocusMetaEl.textContent = `${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias â€¢ criada em ${createdDate} Ã s ${createdTime}`;
+  routeFocusTitleEl.textContent = normalizeUiText(`${route.origin || "-"} → ${destinationText || "-"}`);
+  routeFocusMetaEl.textContent = normalizeUiText(`${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias • criada em ${createdDate} às ${createdTime}`);
   routeFocusHeaderEl.style.display = "block";
 }
 
@@ -1174,7 +1250,9 @@ async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
   const safeRoutes = normalizeArrayData(routes);
   localStorage.setItem(key, JSON.stringify(safeRoutes));
-  await writeCloudUserDataField("routes", safeRoutes);
+  const synced = await writeCloudUserDataField("routes", safeRoutes);
+  if (!synced) await queuePendingCloudField("routes", safeRoutes);
+  return synced;
 }
 
 async function getExpensesStorageKey() {
@@ -1223,7 +1301,9 @@ async function writeTravelExpenses(trips) {
   const key = await getExpensesStorageKey();
   const safeTrips = normalizeArrayData(trips);
   localStorage.setItem(key, JSON.stringify(safeTrips));
-  await writeCloudUserDataField("trips", safeTrips);
+  const synced = await writeCloudUserDataField("trips", safeTrips);
+  if (!synced) await queuePendingCloudField("trips", safeTrips);
+  return synced;
 }
 
 function formatBrl(value) {
@@ -1378,8 +1458,11 @@ async function refreshTravelExpenses() {
 }
 
 async function saveTravelExpenseTrips() {
-  await writeTravelExpenses(travelExpenseTrips);
+  const synced = await writeTravelExpenses(travelExpenseTrips);
   renderTravelExpenses();
+  if (!synced && warnEl) {
+    warnEl.textContent = "Dados salvos neste dispositivo. A sincronização com a nuvem será tentada novamente automaticamente.";
+  }
 }
 
 function renderSavedRoutes(routes = []) {
@@ -2063,12 +2146,12 @@ function renderDaysHtmlEnhanced(days = [], style = "fast", limitMode = "km") {
   return days
     .map((day) => {
       const borderHtml = day.borderCrossing
-        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
+        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${normalizeUiText(day.borderText)}</div>`
         : "";
       const mapsLinkHtml = day.googleMapsUrl
         ? `<div class="tiny" style="margin-top:4px"><a href="${day.googleMapsUrl}" target="_blank" rel="noreferrer" style="color:#ffffff;text-decoration:underline">Ver rota no Google Maps</a></div>`
         : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
+      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${normalizeUiText(day.from)} → ${normalizeUiText(day.to)}</b><div class="tiny">${day.km} km • ${day.hours} h</div><div class="tiny">${normalizeUiText(sleepByStyle(style, day.to))}</div><div class="tiny">Parada próxima da meta diária (${limitMode === "hours" ? "±45min" : "±50km"}).</div>${mapsLinkHtml}${borderHtml}</article>`;
     })
     .join("");
 }
@@ -3152,7 +3235,7 @@ function setupCommunityUi() {
     }
 
     if (button.dataset.action === "delete-collab") {
-      const confirmDelete = window.confirm("Deseja excluir esta colaboraÃ§Ã£o?");
+      const confirmDelete = confirmNormalized("Deseja excluir esta colaboração?");
       if (!confirmDelete) return;
       await deleteMyCollaboration(collabId);
     }
@@ -3392,7 +3475,7 @@ async function generatePlan() {
     currentPlanSnapshot = {
       id: String(Date.now()),
       createdAt: Date.now(),
-      name: `${waypoints[0].name} â†’ ${waypoints[waypoints.length - 1].name}`,
+      name: normalizeUiText(`${waypoints[0].name} → ${waypoints[waypoints.length - 1].name}`),
       origin: waypoints[0].name,
       destinations: waypoints.slice(1).map((point) => point.name),
       style: styleEl.value,
@@ -3408,7 +3491,7 @@ async function generatePlan() {
       boundaryPoints,
       dynamicRoutePois: []
     };
-    currentPlanSnapshot.name = `${currentPlanSnapshot.origin} â†’ ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`;
+    currentPlanSnapshot.name = normalizeUiText(`${currentPlanSnapshot.origin} → ${currentPlanSnapshot.destinations[currentPlanSnapshot.destinations.length - 1] || "-"}`);
     updateRouteFocusHeader(currentPlanSnapshot);
     localStorage.setItem("lastPlan", JSON.stringify(currentPlanSnapshot));
     drawDayStops(boundaryPoints, days);
@@ -3439,21 +3522,31 @@ async function saveCurrentRoute() {
     warnEl.textContent = "Gere um roteiro antes de salvar.";
     return;
   }
-  const suggestedName = currentPlanSnapshot.name || "Minha rota";
-  const routeName = window.prompt("Nome para salvar esta rota:", suggestedName);
+  const rawSuggestedName = currentPlanSnapshot.name || "Minha rota";
+  const suggestedName = repairMojibake(String(rawSuggestedName))
+    .replace(/â†’/g, "→")
+    .replace(/\s*->\s*/g, " → ")
+    .trim();
+  const routeName = promptNormalized("Nome para salvar esta rota:", suggestedName);
   if (routeName === null) return;
 
   const routes = await readSavedRoutes();
   const entry = {
     ...currentPlanSnapshot,
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: routeName.trim() || suggestedName,
+    name: repairMojibake((routeName || "").trim() || suggestedName)
+      .replace(/â†’/g, "→")
+      .replace(/\s*->\s*/g, " → ")
+      .trim(),
     createdAt: Date.now()
   };
   routes.unshift(entry);
-  await writeSavedRoutes(routes.slice(0, 40));
+  const synced = await writeSavedRoutes(routes.slice(0, 40));
   await refreshSavedRoutes();
-  warnEl.textContent = "Rota salva em Minhas rotas.";
+  warnEl.textContent = synced
+    ? "Rota salva e sincronizada em Minhas rotas."
+    : "Rota salva neste dispositivo. A sincronização com a nuvem será tentada novamente automaticamente.";
+  window.location.hash = "#my-routes";
 }
 
 saveRouteBtn?.addEventListener("click", saveCurrentRoute);
@@ -3819,7 +3912,7 @@ tripsListEl?.addEventListener("click", async (event) => {
     return;
   }
   if (button.dataset.action === "delete-trip") {
-    const confirmDelete = window.confirm("Deseja excluir esta viagem e todos os gastos dela?");
+    const confirmDelete = confirmNormalized("Deseja excluir esta viagem e todos os gastos dela?");
     if (!confirmDelete) return;
     travelExpenseTrips = travelExpenseTrips.filter((trip) => trip.id !== tripId);
     if (selectedExpenseTripId === tripId) selectedExpenseTripId = null;
@@ -3915,6 +4008,13 @@ updateCampingSearchModeUi();
 startTextRepairObserver();
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");
+flushPendingCloudSync();
+setInterval(() => {
+  flushPendingCloudSync();
+}, 20000);
+window.addEventListener("online", () => {
+  flushPendingCloudSync();
+});
 refreshSavedRoutes();
 refreshTravelExpenses();
 drawPoiMarkers();
