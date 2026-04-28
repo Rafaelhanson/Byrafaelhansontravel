@@ -454,6 +454,14 @@ const sumDaysEl = document.getElementById("sumDays");
 const daysOutEl = document.getElementById("daysOut");
 const mapSectionEl = document.getElementById("mapa");
 const destinosSectionEl = document.getElementById("destinos");
+const campingSearchCityEl = document.getElementById("campingSearchCity");
+const campingSearchRadiusEl = document.getElementById("campingSearchRadius");
+const campingSearchModeEls = document.querySelectorAll("input[name='campingSearchMode']");
+const campingCityPanelEl = document.getElementById("campingCityPanel");
+const campingSearchBtn = document.getElementById("campingSearchBtn");
+const campingGpsBtn = document.getElementById("campingGpsBtn");
+const campingSearchStatusEl = document.getElementById("campingSearchStatus");
+const campingSearchResultsEl = document.getElementById("campingSearchResults");
 const localDetailSectionEl = document.getElementById("localDetail");
 const localDetailBodyEl = document.getElementById("localDetailBody");
 const backToPlacesBtn = document.getElementById("backToPlaces");
@@ -835,6 +843,7 @@ function setSectionVisibility(sectionId) {
     "my-routes": document.getElementById("my-routes"),
     expenses: document.getElementById("expenses"),
     "expense-trip": document.getElementById("expense-trip"),
+    "camping-search": document.getElementById("camping-search"),
     "my-collabs": document.getElementById("my-collabs"),
     "collab-detail": document.getElementById("collab-detail"),
     mapa: document.getElementById("mapa"),
@@ -2198,7 +2207,7 @@ function mapAmenityElement(el) {
   const amenity = el.tags?.amenity;
   let category = null;
   if (amenity === "fuel") category = "fuel_station";
-  if (tourism === "camp_site") category = "camping";
+  if (tourism === "camp_site" || tourism === "caravan_site") category = "camping";
   if (tourism === "hotel" || tourism === "guest_house" || tourism === "motel") category = "hotel";
   if (!category) return null;
   const lat = el.lat ?? el.center?.lat;
@@ -2218,6 +2227,313 @@ function mapAmenityElement(el) {
     image: "",
     tags: ["carro"]
   };
+}
+
+function escapeHtml(value = "") {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+}
+
+function getCampingSearchMode() {
+  return document.querySelector("input[name='campingSearchMode']:checked")?.value || "city";
+}
+
+function updateCampingSearchModeUi() {
+  const mode = getCampingSearchMode();
+  if (campingCityPanelEl) campingCityPanelEl.style.display = mode === "city" ? "" : "none";
+  if (campingSearchBtn) campingSearchBtn.textContent = mode === "gps" ? "Usar GPS e buscar" : "Buscar campings";
+  if (campingSearchStatusEl) {
+    campingSearchStatusEl.textContent = mode === "gps"
+      ? "GPS selecionado. A localização só será usada quando você clicar em buscar."
+      : "Busca por cidade selecionada. O GPS não será usado.";
+  }
+}
+
+function setCampingSearchStatus(message) {
+  if (campingSearchStatusEl) campingSearchStatusEl.textContent = message;
+}
+
+function getCampingSearchRadiusKm() {
+  const radius = Number(campingSearchRadiusEl?.value || 20);
+  return Number.isFinite(radius) && radius > 0 ? radius : 20;
+}
+
+function getCurrentGpsPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("GPS não disponível neste navegador."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        lat: position.coords.latitude,
+        lon: position.coords.longitude,
+        name: "Minha localização atual"
+      }),
+      () => reject(new Error("Não foi possível acessar o GPS. Confira a permissão do navegador.")),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+    );
+  });
+}
+
+function dedupeCampingResults(items) {
+  const seen = new Set();
+  return items.filter((item) => {
+    const lat = Number(item.lat);
+    const lng = Number(item.lng);
+    const key = `${normalizeName(item.name)}:${lat.toFixed(4)}:${lng.toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getGoogleMapsApiKey() {
+  return (window.APP_AUTH_CONFIG?.googleMapsApiKey || window.APP_CONFIG?.googleMapsApiKey || "").trim();
+}
+
+function loadGoogleMapsPlacesLibrary() {
+  const apiKey = getGoogleMapsApiKey();
+  if (!apiKey) return Promise.resolve(null);
+  if (window.google?.maps?.importLibrary) {
+    return window.google.maps.importLibrary("places");
+  }
+
+  return new Promise((resolve, reject) => {
+    const existing = document.getElementById("googleMapsPlacesScript");
+    const finish = () => {
+      if (window.google?.maps?.importLibrary) {
+        window.google.maps.importLibrary("places").then(resolve).catch(reject);
+      } else {
+        reject(new Error("Google Places não carregou corretamente."));
+      }
+    };
+
+    if (existing) {
+      existing.addEventListener("load", finish, { once: true });
+      existing.addEventListener("error", () => reject(new Error("Falha ao carregar Google Places.")), { once: true });
+      return;
+    }
+
+    window.__byRafaelGooglePlacesReady = finish;
+    const script = document.createElement("script");
+    script.id = "googleMapsPlacesScript";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places&v=weekly&loading=async&callback=__byRafaelGooglePlacesReady`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => reject(new Error("Falha ao carregar Google Places."));
+    document.head.appendChild(script);
+  });
+}
+
+function getGooglePlaceName(place) {
+  if (!place) return "Camping";
+  if (typeof place.displayName === "string") return place.displayName;
+  if (place.displayName?.text) return place.displayName.text;
+  return place.name || "Camping";
+}
+
+function getGooglePlaceLocation(place) {
+  const location = place?.location || place?.geometry?.location;
+  if (!location) return null;
+  const lat = typeof location.lat === "function" ? location.lat() : Number(location.lat);
+  const lng = typeof location.lng === "function" ? location.lng() : Number(location.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+async function fetchGooglePlacesCampingsNear(lat, lon, radiusKm) {
+  if (!getGoogleMapsApiKey()) return [];
+  const placesLibrary = await loadGoogleMapsPlacesLibrary();
+  const radiusM = Math.min(Math.max(1, Number(radiusKm) || 20) * 1000, 50000);
+
+  if (placesLibrary?.Place?.searchNearby) {
+    const { Place, SearchNearbyRankPreference } = placesLibrary;
+    const { places = [] } = await Place.searchNearby({
+      fields: ["id", "displayName", "formattedAddress", "googleMapsURI", "location", "types"],
+      locationRestriction: {
+        center: { lat, lng: lon },
+        radius: radiusM
+      },
+      includedPrimaryTypes: ["campground", "rv_park"],
+      maxResultCount: 20,
+      rankPreference: SearchNearbyRankPreference?.DISTANCE
+    });
+
+    return places.map((place) => {
+      const location = getGooglePlaceLocation(place);
+      if (!location) return null;
+      const name = getGooglePlaceName(place);
+      const maps = place.googleMapsURI || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${location.lat},${location.lng}`)}${place.id ? `&query_place_id=${encodeURIComponent(place.id)}` : ""}`;
+      return {
+        id: `google-${place.id || `${location.lat}-${location.lng}`}`,
+        name,
+        city: place.formattedAddress || "Resultado do Google Places",
+        category: "camping",
+        lat: location.lat,
+        lng: location.lng,
+        description: "Camping encontrado pelo Google Places.",
+        maps,
+        source: "Google Places"
+      };
+    }).filter(Boolean);
+  }
+
+  return new Promise((resolve) => {
+    const service = new google.maps.places.PlacesService(document.createElement("div"));
+    service.nearbySearch({
+      location: new google.maps.LatLng(lat, lon),
+      radius: radiusM,
+      type: "campground",
+      keyword: "camping"
+    }, (results, status) => {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !Array.isArray(results)) {
+        resolve([]);
+        return;
+      }
+      resolve(results.map((place) => {
+        const location = getGooglePlaceLocation(place);
+        if (!location) return null;
+        const name = getGooglePlaceName(place);
+        return {
+          id: `google-${place.place_id || `${location.lat}-${location.lng}`}`,
+          name,
+          city: place.vicinity || "Resultado do Google Places",
+          category: "camping",
+          lat: location.lat,
+          lng: location.lng,
+          description: "Camping encontrado pelo Google Places.",
+          maps: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${location.lat},${location.lng}`)}${place.place_id ? `&query_place_id=${encodeURIComponent(place.place_id)}` : ""}`,
+          source: "Google Places"
+        };
+      }).filter(Boolean));
+    });
+  });
+}
+
+async function fetchCampingsNear(lat, lon, radiusKm) {
+  try {
+    const googleCampings = await fetchGooglePlacesCampingsNear(lat, lon, radiusKm);
+    if (googleCampings.length) return googleCampings;
+  } catch (error) {
+    console.warn("Google Places indisponível; usando busca gratuita.", error);
+  }
+
+  const radiusM = Math.max(1, Number(radiusKm) || 20) * 1000;
+  const query = `
+    [out:json][timeout:45];
+    (
+      nwr(around:${radiusM},${lat},${lon})["tourism"="camp_site"];
+      nwr(around:${radiusM},${lat},${lon})["tourism"="caravan_site"];
+    );
+    out center tags;
+  `;
+  const elements = await runOverpassQuery(query);
+  return elements.map(mapAmenityElement).filter(Boolean).filter((item) => item.category === "camping");
+}
+
+function getCommunityCampingsNear(lat, lon, radiusKm) {
+  const center = [lat, lon];
+  return communityPoints
+    .filter((point) => point.category === "camping")
+    .map((point) => {
+      const pointLat = Number(point.lat);
+      const pointLon = Number(point.lon);
+      if (!Number.isFinite(pointLat) || !Number.isFinite(pointLon)) return null;
+      return {
+        id: `community-${point.id}`,
+        name: point.name || "Camping colaborativo",
+        city: "Colaboração da comunidade",
+        category: "camping",
+        lat: pointLat,
+        lng: pointLon,
+        description: point.description || "Ponto colaborativo enviado por viajante.",
+        maps: `https://maps.google.com/?q=${pointLat},${pointLon}`,
+        source: "Comunidade",
+        distanceKm: haversineKm(center, [pointLat, pointLon])
+      };
+    })
+    .filter(Boolean)
+    .filter((point) => point.distanceKm <= radiusKm);
+}
+
+function renderCampingSearchResults(results, center, label, radiusKm) {
+  if (!campingSearchResultsEl) return;
+  const sorted = dedupeCampingResults(results)
+    .map((item) => {
+      const distanceKm = Number.isFinite(item.distanceKm)
+        ? item.distanceKm
+        : haversineKm([center.lat, center.lon], [Number(item.lat), Number(item.lng)]);
+      return { ...item, distanceKm };
+    })
+    .filter((item) => Number.isFinite(item.distanceKm))
+    .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  if (!sorted.length) {
+    campingSearchResultsEl.innerHTML = "";
+    setCampingSearchStatus(`Nenhum camping encontrado em até ${radiusKm} km de ${label}. Tente aumentar o raio.`);
+    return;
+  }
+
+  setCampingSearchStatus(`${sorted.length} camping(s) encontrado(s) em até ${radiusKm} km de ${label}, em ordem de proximidade.`);
+  campingSearchResultsEl.innerHTML = sorted.map((item) => `
+    <article class="saved-route-item camping-result-card">
+      <div class="saved-route-title">${escapeHtml(item.name || "Camping")}</div>
+      <div class="camping-result-distance">${item.distanceKm.toFixed(1)} km de distância</div>
+      <div class="saved-route-meta">${escapeHtml(item.city || "Região pesquisada")}${item.source ? ` • ${escapeHtml(item.source)}` : ""}</div>
+      <p class="tiny">${escapeHtml(item.description || "Camping encontrado próximo ao ponto pesquisado.")}</p>
+      <div class="saved-route-actions">
+        <a class="maps-link" href="${item.maps}" target="_blank" rel="noreferrer">Abrir no Google Maps</a>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function runCampingSearchFromPoint(center, label) {
+  const radiusKm = getCampingSearchRadiusKm();
+  setCampingSearchStatus(`Buscando campings em até ${radiusKm} km de ${label}...`);
+  if (campingSearchResultsEl) campingSearchResultsEl.innerHTML = "";
+  const externalCampings = await fetchCampingsNear(center.lat, center.lon, radiusKm);
+  const communityCampings = getCommunityCampingsNear(center.lat, center.lon, radiusKm);
+  renderCampingSearchResults([...externalCampings, ...communityCampings], center, label, radiusKm);
+}
+
+async function runCampingSearch() {
+  const mode = getCampingSearchMode();
+  try {
+    if (mode === "gps") {
+      setCampingSearchStatus("Pedindo permissão para usar o GPS...");
+      const gps = await getCurrentGpsPosition();
+      await runCampingSearchFromPoint(gps, gps.name);
+      return;
+    }
+
+    const city = campingSearchCityEl?.value?.trim() || "";
+    if (!city) {
+      setCampingSearchStatus("Digite uma cidade ou região, ou marque a opção de usar GPS.");
+      campingSearchCityEl?.focus();
+      return;
+    }
+    setCampingSearchStatus(`Localizando ${city}...`);
+    const resolved = await geocodeIfNeeded(city);
+    if (!resolved) {
+      setCampingSearchStatus("Não encontrei essa cidade/região. Tente escrever de outra forma.");
+      return;
+    }
+    rememberRecentSearch(campingSearchCityEl, resolved.name || city);
+    await runCampingSearchFromPoint({
+      lat: Number(resolved.lat),
+      lon: Number(resolved.lon),
+      name: resolved.name || city
+    }, resolved.name || city);
+  } catch (error) {
+    setCampingSearchStatus(error.message || "Não foi possível buscar campings agora. Tente novamente.");
+  }
 }
 
 async function fetchRouteAmenities(coords, stopCoords = []) {
@@ -3575,7 +3891,27 @@ mapBackToCollabsBtn?.addEventListener("click", () => {
 expenseTripBackBtn?.addEventListener("click", () => {
   window.location.hash = "#expenses";
 });
+campingSearchModeEls.forEach((radio) => {
+  radio.addEventListener("change", updateCampingSearchModeUi);
+});
+campingSearchBtn?.addEventListener("click", runCampingSearch);
+campingGpsBtn?.addEventListener("click", () => {
+  const gpsRadio = document.querySelector("input[name='campingSearchMode'][value='gps']");
+  if (gpsRadio) gpsRadio.checked = true;
+  updateCampingSearchModeUi();
+  runCampingSearch();
+});
+campingSearchCityEl?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const cityRadio = document.querySelector("input[name='campingSearchMode'][value='city']");
+    if (cityRadio) cityRadio.checked = true;
+    updateCampingSearchModeUi();
+    runCampingSearch();
+  }
+});
 bindMobileMenu();
+updateCampingSearchModeUi();
 startTextRepairObserver();
 updateRouteFocusHeader(null);
 handleSectionVisibilityByHash(window.location.hash || "#home");

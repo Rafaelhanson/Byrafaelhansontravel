@@ -24,5 +24,8 @@ window.APP_AUTH_CONFIG = {
   signupLogTable: "signup_notifications",
   // Sincroniza rotas e gastos entre navegador local e app publicado no Vercel.
   // Estrutura criada no arquivo supabase_access_setup.sql.
-  userDataTable: "app_user_data"
+  userDataTable: "app_user_data",
+  // Opcional: chave do Google Maps JavaScript API com Places API (New) habilitada.
+  // Use uma chave de navegador com restrição por domínio no Google Cloud.
+  googleMapsApiKey: ""
 };

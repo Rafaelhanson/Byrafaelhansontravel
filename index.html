@@ -637,6 +637,14 @@
     .expense-chip{display:inline-flex;align-items:center;border-radius:999px;background:#12382f;padding:.24rem .52rem;font:800 .68rem/1 Inter;color:#bdebd8;margin-right:5px}
     .expense-money{font:900 1rem/1 Inter;color:#fff}
     .expense-list-panel .saved-route-item.active{background:#17362f;box-shadow:inset 0 0 0 1px rgba(134,209,165,.52)}
+    .camping-search-panel{display:grid;grid-template-columns:minmax(260px,1.1fr) minmax(230px,1fr) 170px auto;gap:12px;align-items:end;margin-top:14px}
+    .camping-search-mode{display:grid;gap:8px;align-self:stretch;padding:10px;border-radius:14px;background:#102321;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
+    .camping-search-mode label{display:flex;align-items:center;gap:8px;margin:0;text-transform:none;letter-spacing:0;font:800 .86rem/1.25 Inter;color:#dff4ec;cursor:pointer}
+    .camping-search-mode input{width:auto;accent-color:#7bd9ae}
+    .camping-search-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .camping-result-card{display:grid;gap:5px}
+    .camping-result-distance{font:900 .9rem/1 Inter;color:#7bd9ae}
+    .camping-result-card .maps-link{color:#fff;font-weight:900}
     .collab-title-link{color:#dff3ea;text-decoration:none}
     .collab-title-link:hover{text-decoration:underline}
     .collab-detail-card{border:0;border-radius:14px;background:#102521;padding:14px;box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
@@ -683,7 +691,7 @@
     body.route-focus .route-focus-header{display:block}
     body.route-focus #planner{margin-top:10px}
     @media (max-width:1000px){
-      .planner,.stages,.grid,.local-grid,.hero-layout,.intro-grid,.expenses-layout,.expenses-dashboard{grid-template-columns:1fr}
+      .planner,.stages,.grid,.local-grid,.hero-layout,.intro-grid,.expenses-layout,.expenses-dashboard,.camping-search-panel{grid-template-columns:1fr}
       .hero-right{align-content:start}
       .intro-copy{padding-top:170px}
       .intro-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -694,6 +702,7 @@
       .intro-gallery-item img{height:180px}
       .expense-two,.expense-three{grid-template-columns:1fr}
       .expense-pie{width:140px;height:140px}
+      .camping-search-actions .btn{width:100%}
     }
     @media (max-width:700px){
       .topbar{
@@ -1027,6 +1036,39 @@
           <p id="expensesEmpty" class="tiny">Nenhum gasto lançado nesta viagem ainda.</p>
         </article>
       </div>
+    </section>
+
+    <section id="camping-search" class="card" hidden>
+      <div class="head">
+        <span class="badge">apoio na estrada</span>
+        <h2>Busca de campings</h2>
+        <p>Escolha claramente se a busca será por cidade/região ou pelo GPS atual. O GPS só será usado quando você marcar essa opção.</p>
+      </div>
+      <div class="camping-search-panel">
+        <div class="camping-search-mode" role="radiogroup" aria-label="Modo de busca de campings">
+          <label><input type="radio" name="campingSearchMode" value="city" checked> Buscar por cidade ou região</label>
+          <label><input type="radio" name="campingSearchMode" value="gps"> Usar meu GPS agora</label>
+        </div>
+        <div id="campingCityPanel" class="field">
+          <label for="campingSearchCity">Cidade ou região</label>
+          <input id="campingSearchCity" autocomplete="off" placeholder="Ex.: Bariloche, Ushuaia, El Chaltén">
+        </div>
+        <div class="field">
+          <label for="campingSearchRadius">Raio</label>
+          <select id="campingSearchRadius">
+            <option value="10">Até 10 km</option>
+            <option value="20" selected>Até 20 km</option>
+            <option value="50">Até 50 km</option>
+            <option value="80">Até 80 km</option>
+          </select>
+        </div>
+        <div class="camping-search-actions">
+          <button id="campingSearchBtn" class="btn btn-p" type="button">Buscar campings</button>
+          <button id="campingGpsBtn" class="btn" type="button" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Usar GPS e buscar</button>
+        </div>
+      </div>
+      <p id="campingSearchStatus" class="tiny" style="margin-top:10px">Nenhuma busca iniciada.</p>
+      <div id="campingSearchResults" class="saved-routes" style="margin-top:12px"></div>
     </section>
 
     <section id="my-collabs" class="card">
