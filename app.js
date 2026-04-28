@@ -1080,6 +1080,7 @@ function handleSectionVisibilityByHash(hash) {
     setSectionVisibility("planner");
     setCollabDetailVisibility(false);
     revealMapSection();
+    showPlannerRouteLayersOnMap();
     updateActiveNav(routeOpenContext === "saved" ? "#my-routes" : "#planner");
     if (currentPlanSnapshot) {
       enterRouteFocusMode();
@@ -1125,10 +1126,31 @@ function handleSectionVisibilityByHash(hash) {
   updateActiveNav(`#${sectionId}`);
 
   if (sectionId === "mapa") {
+    hidePlannerRouteLayersFromMap();
     requestAnimationFrame(() => {
       map.invalidateSize();
     });
   }
+}
+
+function hidePlannerRouteLayersFromMap() {
+  if (routeLayer && map.hasLayer(routeLayer)) map.removeLayer(routeLayer);
+  routeMarkers.forEach((marker) => {
+    if (map.hasLayer(marker)) map.removeLayer(marker);
+  });
+  if (cityAnchorsLayer && map.hasLayer(cityAnchorsLayer)) map.removeLayer(cityAnchorsLayer);
+  if (dayStopsLayer && map.hasLayer(dayStopsLayer)) map.removeLayer(dayStopsLayer);
+  if (borderCrossingsLayer && map.hasLayer(borderCrossingsLayer)) map.removeLayer(borderCrossingsLayer);
+}
+
+function showPlannerRouteLayersOnMap() {
+  if (routeLayer && !map.hasLayer(routeLayer)) routeLayer.addTo(map);
+  routeMarkers.forEach((marker) => {
+    if (!map.hasLayer(marker)) marker.addTo(map);
+  });
+  if (cityAnchorsLayer && !map.hasLayer(cityAnchorsLayer)) cityAnchorsLayer.addTo(map);
+  if (dayStopsLayer && !map.hasLayer(dayStopsLayer)) dayStopsLayer.addTo(map);
+  if (borderCrossingsLayer && !map.hasLayer(borderCrossingsLayer)) borderCrossingsLayer.addTo(map);
 }
 
 function enterRouteFocusMode() {
