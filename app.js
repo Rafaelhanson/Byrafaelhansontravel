@@ -63,6 +63,8 @@ function normalizeUiText(value) {
   if (value === null || value === undefined) return "";
   return repairMojibake(String(value))
     .replace(/â†’/g, "→")
+    .replace(/â†-/g, "→")
+    .replace(/â†/g, "→")
     .replace(/â€¢/g, "•")
     .replace(/Ã\s*s/g, "às")
     .replace(/\s*->\s*/g, " → ")
