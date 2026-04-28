@@ -1582,11 +1582,15 @@ function buildRoutePdfHtml(route) {
   const createdAtDate = new Date(route.createdAt || Date.now());
   const createdDate = createdAtDate.toLocaleDateString("pt-BR");
   const createdTime = createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const routeName = normalizeUiText(route.name || "Rota da viagem");
+  const originText = normalizeUiText(route.origin || "-");
+  const destinationsText = normalizeUiText((route.destinations || []).join(" - ") || "-");
+  const summaryText = normalizeUiText(`${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias`);
   const daysRows = (route.days || [])
-    .map((day) => `<tr><td>${day.day}</td><td>${day.from} -> ${day.to}</td><td>${day.km} km</td><td>${day.hours} h</td></tr>`)
+    .map((day) => `<tr><td>${day.day}</td><td>${normalizeUiText(day.from)} → ${normalizeUiText(day.to)}</td><td>${day.km} km</td><td>${day.hours} h</td></tr>`)
     .join("");
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${route.name || "Rota"} - PDF</title><style>
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${routeName} - PDF</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
@@ -1594,16 +1598,16 @@ function buildRoutePdfHtml(route) {
     th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
     th{background:#eef3f8}
   </style></head><body>
-    <h1>${route.name || "Rota da viagem"}</h1>
+    <h1>${routeName}</h1>
     <p class="muted">By Rafael Hanson</p>
     <div class="meta">
-      <div><b>Origem:</b> ${route.origin || "-"}</div>
-      <div><b>Destinos:</b> ${(route.destinations || []).join(" - ") || "-"}</div>
-      <div><b>Resumo:</b> ${route.totalKm || 0} km - ${route.totalHours || 0} h - ${route.totalDays || 0} dias</div>
-      <div><b>Criada em:</b> ${createdDate} as ${createdTime}</div>
+      <div><b>Origem:</b> ${originText}</div>
+      <div><b>Destinos:</b> ${destinationsText}</div>
+      <div><b>Resumo:</b> ${summaryText}</div>
+      <div><b>Criada em:</b> ${createdDate} às ${createdTime}</div>
     </div>
     <h2 style="font-size:18px;margin:14px 0 8px">Trechos por dia</h2>
-    <table><thead><tr><th>Dia</th><th>Trecho</th><th>Distancia</th><th>Tempo</th></tr></thead><tbody>${daysRows}</tbody></table>
+    <table><thead><tr><th>Dia</th><th>Trecho</th><th>Distância</th><th>Tempo</th></tr></thead><tbody>${daysRows}</tbody></table>
   </body></html>`;
 }
 
