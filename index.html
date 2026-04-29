@@ -240,14 +240,26 @@
       z-index:0;
       pointer-events:none;
     }
-    .hero-c{padding:42px 28px;position:relative;z-index:1}
+    .hero-logo{
+      position:absolute;
+      top:18px;
+      left:50%;
+      width:clamp(70px,6vw,96px);
+      height:auto;
+      transform:translateX(-50%);
+      z-index:2;
+      opacity:.92;
+      pointer-events:none;
+      filter:drop-shadow(0 16px 28px rgba(0,0,0,.42));
+    }
+    .hero-c{padding:108px 28px 42px;position:relative;z-index:1}
     .hero-layout{
       display:grid;
       grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);
       gap:18px;
       align-items:stretch;
     }
-    .hero-left{display:grid;align-content:start}
+    .hero-left{display:grid;align-content:start;padding-top:38px}
     .hero-right{
       display:grid;
       gap:12px;
@@ -303,7 +315,7 @@
       flex:none;
     }
     .chip{display:inline-block;background:#12382faa;border:0;border-radius:999px;padding:.34rem .8rem;font:700 .74rem/1 Inter;text-transform:uppercase;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
-    h1{font:900 clamp(2.35rem,6.6vw,4.85rem)/.98 "Playfair Display",serif;margin:.75rem 0 .9rem;letter-spacing:-.02em}
+    h1{font:900 clamp(1.9rem,4.75vw,3.1rem)/.98 "Playfair Display",serif;margin:.75rem 0 .9rem;letter-spacing:-.02em}
     .hero p{margin:0;max-width:640px;color:#d9ece4;font:500 1.05rem/1.55 Inter}
     .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
     .intro-section{
@@ -702,9 +714,7 @@
     #collab-detail a,
     #collab-detail a:visited,
     #mapa a,
-    #mapa a:visited,
-    .leaflet-popup-content a,
-    .leaflet-popup-content a:visited{
+    #mapa a:visited{
       color:#edf8f3;
       text-decoration:underline;
       text-underline-offset:2px;
@@ -713,7 +723,21 @@
     #collab-detail a:hover,
     #mapa a:hover,
     .leaflet-popup-content a:hover{
+      color:#0b4ea2;
+    }
+    #collab-detail a:hover,
+    #mapa a:hover{
       color:#ffffff;
+    }
+    #mapa .leaflet-popup-content a,
+    #mapa .leaflet-popup-content a:visited{
+      color:#064a9f;
+      text-decoration:underline;
+      text-underline-offset:2px;
+      font-weight:700;
+    }
+    #mapa .leaflet-popup-content a:hover{
+      color:#032f68;
     }
     .footer{margin:18px 0 25px;text-align:center;color:#96b6ab;font:.78rem/1.2 Inter}
     .route-focus-header{display:none;margin-bottom:10px;padding:12px;border:0;border-radius:14px;background:linear-gradient(135deg,#122926,#102220);box-shadow:inset 0 0 0 1px rgba(121,177,155,.24)}
@@ -753,6 +777,16 @@
       .topbar{
         justify-content:space-between;
         padding:10px 0;
+      }
+      .hero-logo{
+        top:16px;
+        width:76px;
+      }
+      .hero-c{
+        padding:98px 18px 30px;
+      }
+      .hero-left{
+        padding-top:28px;
       }
       .mobile-actions{display:flex}
       .mobile-menu-btn{display:inline-flex}
@@ -814,9 +848,9 @@
 
   <main class="wrap">
     <section id="home" class="hero">
+      <img class="hero-logo" src="./overland-logo-white.png" alt="Viagens, cafes e fotos Overland">
       <div class="hero-c hero-layout">
         <div class="hero-left">
-        <span class="chip">road trip premium planner</span>
         <h1>Planeje sua road trip dos sonhos até a Patagônia</h1>
         <p>Agora com origem e destino livres: digite qualquer cidade, escolha nas sugestões e gere rota real de carro.</p>
         <div class="cta">
@@ -860,9 +894,6 @@
           <p>Já são mais de 12 anos viajando dessa forma, passando por mais de 12 países e colecionando experiências que, sem exagero, eu vou levar pra vida inteira. E agora, eu quero te ajudar a viver isso também.</p>
 
           <p class="intro-quote">Bora planejar a sua próxima viagem? Se você quer sair do básico e viver uma aventura de verdade… você está no lugar certo.</p>
-          <div class="intro-cta">
-            <a class="btn btn-p" href="#planner">Começar agora</a>
-          </div>
           <h4 class="intro-gallery-title">Algumas das minhas aventuras por aí</h4>
           <div class="intro-gallery">
             <figure class="intro-gallery-item"><img src="./intro-adv-1.jpg" alt="Aventura 1" loading="lazy"></figure>
