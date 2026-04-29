@@ -539,6 +539,10 @@ const clearExpenseSelectionBtn = document.getElementById("clearExpenseSelectionB
 const expenseTripTitleEl = document.getElementById("expenseTripTitle");
 const expenseTripMetaEl = document.getElementById("expenseTripMeta");
 const expenseTripBackBtn = document.getElementById("expenseTripBackBtn");
+const expenseReportTypeEl = document.getElementById("expenseReportType");
+const expenseReportGenerateBtn = document.getElementById("expenseReportGenerateBtn");
+const expenseReportPrintBtn = document.getElementById("expenseReportPrintBtn");
+const expenseReportOutputEl = document.getElementById("expenseReportOutput");
 
 let selectedOrigin = null;
 const selectedDestinations = [null, null, null, null, null];
@@ -1388,6 +1392,141 @@ function categoryTotalsForTrip(trip) {
   return totals;
 }
 
+function normalizeExpenseDateKey(value) {
+  if (!value) return "Sem data";
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const [year, month, day] = raw.split("-");
+    return `${day}/${month}/${year}`;
+  }
+  return raw;
+}
+
+function buildExpenseReportData(trip, mode) {
+  const expenses = Array.isArray(trip?.expenses) ? trip.expenses : [];
+  const grouped = new Map();
+  let total = 0;
+
+  expenses.forEach((expense) => {
+    const value = Number(expense?.brl || 0);
+    if (!Number.isFinite(value) || value <= 0) return;
+    total += value;
+
+    let key = "";
+    let label = "";
+    if (mode === "payment") {
+      key = expense?.payment || "other";
+      label = EXPENSE_PAYMENT_LABELS[key] || key;
+    } else if (mode === "category") {
+      key = expense?.category || "extras";
+      label = EXPENSE_CATEGORY_LABELS[key] || key;
+    } else {
+      key = normalizeExpenseDateKey(expense?.date);
+      label = key;
+    }
+
+    const current = grouped.get(key) || { label, count: 0, total: 0 };
+    current.count += 1;
+    current.total += value;
+    grouped.set(key, current);
+  });
+
+  const rows = Array.from(grouped.values());
+  rows.sort((a, b) => b.total - a.total);
+
+  return { rows, total };
+}
+
+function renderExpenseReport(trip, mode = "day") {
+  if (!expenseReportOutputEl) return;
+  if (!trip) {
+    expenseReportOutputEl.innerHTML = `<div class="tiny">Selecione uma viagem para gerar o relatório.</div>`;
+    return;
+  }
+
+  const { rows, total } = buildExpenseReportData(trip, mode);
+  if (!rows.length) {
+    expenseReportOutputEl.innerHTML = `<div class="tiny">Esta viagem ainda não tem gastos lançados.</div>`;
+    return;
+  }
+
+  const label = mode === "payment"
+    ? "Forma de pagamento"
+    : mode === "category"
+      ? "Categoria"
+      : "Dia";
+
+  const tableRows = rows
+    .map((row) => `<tr><td>${normalizeUiText(row.label)}</td><td>${row.count}</td><td>${formatBrl(row.total)}</td></tr>`)
+    .join("");
+
+  expenseReportOutputEl.innerHTML = `
+    <div class="tiny" style="margin-bottom:6px"><strong>Viagem:</strong> ${normalizeUiText(trip.name || "Sem nome")} • <strong>Total:</strong> ${formatBrl(total)}</div>
+    <table class="expense-report-table">
+      <thead>
+        <tr><th>${label}</th><th>Lançamentos</th><th>Total (BRL)</th></tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
+function buildExpenseReportPrintHtml(trip, mode = "day") {
+  const { rows, total } = buildExpenseReportData(trip, mode);
+  const createdAtDate = new Date(trip?.createdAt || Date.now());
+  const createdAtText = `${createdAtDate.toLocaleDateString("pt-BR")} ${createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  const label = mode === "payment"
+    ? "Forma de pagamento"
+    : mode === "category"
+      ? "Categoria"
+      : "Dia";
+  const tableRows = rows
+    .map((row) => `<tr><td>${normalizeUiText(row.label)}</td><td>${row.count}</td><td>${formatBrl(row.total)}</td></tr>`)
+    .join("");
+
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de gastos - ${normalizeUiText(trip?.name || "Viagem")}</title><style>
+    body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
+    h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
+    .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
+    th{background:#eef3f8}
+  </style></head><body>
+    <h1>Relatório de gastos</h1>
+    <p class="muted">By Rafael Hanson</p>
+    <div class="meta">
+      <div><b>Viagem:</b> ${normalizeUiText(trip?.name || "-")}</div>
+      <div><b>Data de criação:</b> ${createdAtText}</div>
+      <div><b>Tipo de relatório:</b> ${label}</div>
+      <div><b>Total:</b> ${formatBrl(total)}</div>
+    </div>
+    <table><thead><tr><th>${label}</th><th>Lançamentos</th><th>Total (BRL)</th></tr></thead><tbody>${tableRows}</tbody></table>
+  </body></html>`;
+}
+
+function printExpenseReport(trip, mode = "day") {
+  if (!trip) {
+    if (warnEl) warnEl.textContent = "Selecione uma viagem antes de imprimir o relatório.";
+    return;
+  }
+  const { rows } = buildExpenseReportData(trip, mode);
+  if (!rows.length) {
+    if (warnEl) warnEl.textContent = "A viagem selecionada ainda não possui gastos.";
+    return;
+  }
+
+  const printWindow = window.open("", "_blank", "width=980,height=760");
+  if (!printWindow) {
+    if (warnEl) warnEl.textContent = "Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-up.";
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(buildExpenseReportPrintHtml(trip, mode));
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => printWindow.print(), 300);
+}
+
 function setExpenseFormEnabled(enabled, selectedTrip) {
   if (!expenseFormEl) return;
   if (expenseEntryPanelEl) {
@@ -1500,6 +1639,9 @@ function renderTravelExpenses() {
       </article>
     `)
     .join("");
+
+  const reportMode = expenseReportTypeEl?.value || "day";
+  renderExpenseReport(selectedTrip, reportMode);
 }
 
 async function refreshTravelExpenses() {
@@ -4052,6 +4194,21 @@ mapBackToCollabsBtn?.addEventListener("click", () => {
 });
 expenseTripBackBtn?.addEventListener("click", () => {
   window.location.hash = "#expenses";
+});
+expenseReportGenerateBtn?.addEventListener("click", () => {
+  const selectedTrip = getSelectedExpenseTrip();
+  const reportMode = expenseReportTypeEl?.value || "day";
+  renderExpenseReport(selectedTrip, reportMode);
+});
+expenseReportPrintBtn?.addEventListener("click", () => {
+  const selectedTrip = getSelectedExpenseTrip();
+  const reportMode = expenseReportTypeEl?.value || "day";
+  printExpenseReport(selectedTrip, reportMode);
+});
+expenseReportTypeEl?.addEventListener("change", () => {
+  const selectedTrip = getSelectedExpenseTrip();
+  const reportMode = expenseReportTypeEl?.value || "day";
+  renderExpenseReport(selectedTrip, reportMode);
 });
 campingSearchModeEls.forEach((radio) => {
   radio.addEventListener("change", updateCampingSearchModeUi);
