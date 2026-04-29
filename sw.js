@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v11";
+const CACHE_NAME = "by-rafael-hanson-v12";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
   "./assets/puerto-madryn-cover.jpg",
   "./assets/bariloche-cover.jpg",
   "./overland-logo-white.png",
+  "./overland-logo-print.png",
   "./site-intro.jpg",
   "./intro-adv-1.jpg",
   "./intro-adv-2.jpg",

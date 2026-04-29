@@ -1493,6 +1493,10 @@ function getExpenseReportLabel(mode) {
       : "Dia";
 }
 
+function getPrintLogoHtml() {
+  return `<div class="print-logo"><img src="./overland-logo-print.png" alt="Viagens Cafes e Fotos Overland"></div>`;
+}
+
 function buildExpenseReportPrintHtml(trip) {
   const reportSections = [
     { mode: "day", title: "Gastos por dia" },
@@ -1528,6 +1532,8 @@ function buildExpenseReportPrintHtml(trip) {
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de gastos - ${normalizeUiText(trip?.name || "Viagem")}</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
+    .print-logo{height:82px;margin:0 0 18px;display:flex;align-items:flex-start}
+    .print-logo img{width:118px;max-height:78px;object-fit:contain;display:block}
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
     h2{margin:22px 0 8px;font-size:18px;color:#102033}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
@@ -1536,6 +1542,7 @@ function buildExpenseReportPrintHtml(trip) {
     th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
     th{background:#eef3f8}
   </style></head><body>
+    ${getPrintLogoHtml()}
     <h1>Relatório de gastos</h1>
     <p class="muted">By Rafael Hanson</p>
     <div class="meta">
@@ -1795,12 +1802,15 @@ function buildRoutePdfHtml(route) {
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${routeName} - PDF</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
+    .print-logo{height:82px;margin:0 0 18px;display:flex;align-items:flex-start}
+    .print-logo img{width:118px;max-height:78px;object-fit:contain;display:block}
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
     th{background:#eef3f8}
   </style></head><body>
+    ${getPrintLogoHtml()}
     <h1>${routeName}</h1>
     <p class="muted">By Rafael Hanson</p>
     <div class="meta">
