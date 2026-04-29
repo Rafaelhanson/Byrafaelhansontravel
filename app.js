@@ -1485,23 +1485,53 @@ function renderExpenseReport(trip, mode = "day") {
   `;
 }
 
-function buildExpenseReportPrintHtml(trip, mode = "day") {
-  const { rows, total } = buildExpenseReportData(trip, mode);
-  const createdAtDate = new Date(trip?.createdAt || Date.now());
-  const createdAtText = `${createdAtDate.toLocaleDateString("pt-BR")} ${createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-  const label = mode === "payment"
+function getExpenseReportLabel(mode) {
+  return mode === "payment"
     ? "Forma de pagamento"
     : mode === "category"
       ? "Categoria"
       : "Dia";
-  const tableRows = rows
-    .map((row) => `<tr><td>${normalizeUiText(row.label)}</td><td>${row.count}</td><td>${formatBrl(row.total)}</td></tr>`)
+}
+
+function buildExpenseReportPrintHtml(trip) {
+  const reportSections = [
+    { mode: "day", title: "Gastos por dia" },
+    { mode: "payment", title: "Gastos por forma de pagamento" },
+    { mode: "category", title: "Gastos por categoria" }
+  ];
+  const total = buildExpenseReportData(trip, "day").total;
+  const createdAtDate = new Date(trip?.createdAt || Date.now());
+  const createdAtText = `${createdAtDate.toLocaleDateString("pt-BR")} ${createdAtDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  const sectionsHtml = reportSections
+    .map(({ mode, title }) => {
+      const { rows } = buildExpenseReportData(trip, mode);
+      const label = getExpenseReportLabel(mode);
+      const tableRows = rows.length
+        ? rows
+            .map((row) => `<tr><td>${normalizeUiText(row.label)}</td><td>${row.count}</td><td>${formatBrl(row.total)}</td></tr>`)
+            .join("")
+        : `<tr><td colspan="3">Nenhum gasto lançado.</td></tr>`;
+
+      return `
+        <section>
+          <h2>${title}</h2>
+          <table>
+            <thead>
+              <tr><th>${label}</th><th>Lançamentos</th><th>Total (BRL)</th></tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </section>
+      `;
+    })
     .join("");
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de gastos - ${normalizeUiText(trip?.name || "Viagem")}</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
+    h2{margin:22px 0 8px;font-size:18px;color:#102033}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
+    section{page-break-inside:avoid}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #dbe3ec;padding:8px;font-size:13px;text-align:left}
     th{background:#eef3f8}
@@ -1511,10 +1541,10 @@ function buildExpenseReportPrintHtml(trip, mode = "day") {
     <div class="meta">
       <div><b>Viagem:</b> ${normalizeUiText(trip?.name || "-")}</div>
       <div><b>Data de criação:</b> ${createdAtText}</div>
-      <div><b>Tipo de relatório:</b> ${label}</div>
+      <div><b>Relatório:</b> gastos por dia, por forma de pagamento e por categoria</div>
       <div><b>Total:</b> ${formatBrl(total)}</div>
     </div>
-    <table><thead><tr><th>${label}</th><th>Lançamentos</th><th>Total (BRL)</th></tr></thead><tbody>${tableRows}</tbody></table>
+    ${sectionsHtml}
   </body></html>`;
 }
 
