@@ -563,6 +563,8 @@ let routesStorageKeyCacheEmail = null;
 let expensesStorageKeyCacheEmail = null;
 let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
+let travelExpensesLoaded = false;
+let pendingExpenseTripHash = "";
 let currentUserCache = null;
 let cloudDataCache = null;
 let cloudDataLoadedForUser = null;
@@ -1107,6 +1109,14 @@ function handleSectionVisibilityByHash(hash) {
       selectedExpenseTripId = tripId;
     }
     if (!getSelectedExpenseTrip()) {
+      if (!travelExpensesLoaded) {
+        pendingExpenseTripHash = normalized;
+        setSectionVisibility("expenses");
+        setCollabDetailVisibility(false);
+        updateActiveNav("#expenses");
+        renderTravelExpenses();
+        return;
+      }
       selectedExpenseTripId = null;
       setSectionVisibility("expenses");
       setCollabDetailVisibility(false);
@@ -1326,17 +1336,21 @@ async function getExpensesStorageKey() {
   return expensesStorageKeyCache;
 }
 
-async function readTravelExpenses() {
+async function readLocalTravelExpenses() {
   const key = await getExpensesStorageKey();
-  let localTrips = [];
   try {
     const raw = safeGetStorage(key);
-    if (!raw) localTrips = [];
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    localTrips = Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    localTrips = [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
   }
+}
+
+async function readTravelExpenses() {
+  const key = await getExpensesStorageKey();
+  const localTrips = await readLocalTravelExpenses();
 
   const cloudData = await readCloudUserData();
   if (!cloudData) return localTrips;
@@ -1645,11 +1659,28 @@ function renderTravelExpenses() {
 }
 
 async function refreshTravelExpenses() {
+  travelExpensesLoaded = false;
+  const localTrips = await readLocalTravelExpenses();
+  if (localTrips.length || !travelExpenseTrips.length) {
+    travelExpenseTrips = localTrips;
+    renderTravelExpenses();
+    if (selectedExpenseTripId && travelExpenseTrips.some((trip) => trip.id === selectedExpenseTripId)) {
+      handleSectionVisibilityByHash(`#expense-trip/${encodeURIComponent(selectedExpenseTripId)}`);
+    }
+  }
+
   travelExpenseTrips = await readTravelExpenses();
+  travelExpensesLoaded = true;
   if (selectedExpenseTripId && !travelExpenseTrips.some((trip) => trip.id === selectedExpenseTripId)) {
     selectedExpenseTripId = null;
   }
   renderTravelExpenses();
+
+  if (pendingExpenseTripHash) {
+    const targetHash = pendingExpenseTripHash;
+    pendingExpenseTripHash = "";
+    handleSectionVisibilityByHash(targetHash);
+  }
 }
 
 async function saveTravelExpenseTrips() {
