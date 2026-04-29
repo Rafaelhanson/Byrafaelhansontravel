@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v9";
+const CACHE_NAME = "by-rafael-hanson-v10";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -15,17 +15,20 @@ const STATIC_ASSETS = [
   "./assets/torres-cover.jpg",
   "./assets/puerto-madryn-cover.jpg",
   "./assets/bariloche-cover.jpg",
-  "./rafael-road-1.jpg",
-  "./rafael-road-2.jpg",
-  "./ushuaia-cover.jpg",
-  "./torres-cover.jpg",
-  "./puerto-madryn-cover.jpg",
-  "./bariloche-cover.jpg"
+  "./site-intro.jpg",
+  "./intro-adv-1.jpg",
+  "./intro-adv-2.jpg",
+  "./intro-adv-3.jpg",
+  "./intro-adv-4.jpg",
+  "./intro-adv-5.jpg",
+  "./intro-adv-6.jpg"
 ];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(STATIC_ASSETS.map((asset) => cache.add(asset)))
+    )
   );
   self.skipWaiting();
 });
@@ -53,24 +56,44 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isAppShellRequest =
+    event.request.mode === "navigate" ||
+    requestUrl.pathname.endsWith(".html") ||
+    requestUrl.pathname.endsWith(".js") ||
+    requestUrl.pathname.endsWith(".webmanifest");
+
+  if (isAppShellRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type !== "opaque") {
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then((cached) => {
+            if (cached) return cached;
+            if (event.request.mode === "navigate") return caches.match("./index.html");
+            return Response.error();
+          })
+        )
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type === "opaque") {
-            return response;
-          }
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+      return fetch(event.request).then((response) => {
+        if (!response || response.status !== 200 || response.type === "opaque") {
           return response;
-        })
-        .catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-          return Response.error();
-        });
+        }
+        const cloned = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+        return response;
+      });
     })
   );
 });
