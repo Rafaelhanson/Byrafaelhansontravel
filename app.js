@@ -563,6 +563,7 @@ let routesStorageKeyCacheEmail = null;
 let expensesStorageKeyCacheEmail = null;
 let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
+let expensesListExpanded = false;
 let travelExpensesLoaded = false;
 let pendingExpenseTripHash = "";
 let currentUserCache = null;
@@ -573,6 +574,7 @@ const volatileStorageFallback = new Map();
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
+let selectedCommunityCategory = "all";
 let isAddingCommunityPoint = false;
 let pendingCommunityCoords = null;
 let supabaseClient = null;
@@ -611,7 +613,7 @@ const COMMUNITY_CATEGORY_LABELS = {
   fuel_station: "Posto",
   viewpoint: "Mirante",
   alert: "Alerta",
-  support: "Apoio"
+  support: "Ponto turistico importante"
 };
 
 const COMMUNITY_CATEGORY_COLORS = {
@@ -1626,6 +1628,13 @@ function setExpenseFormEnabled(enabled, selectedTrip) {
   }
 }
 
+function setExpenseDateToToday() {
+  if (expenseDateEl) {
+    const today = new Date().toISOString().split('T')[0];
+    expenseDateEl.value = today;
+  }
+}
+
 function renderExpensePie(totals) {
   if (!expensePieEl || !expenseLegendEl) return;
   const entries = Object.entries(totals).filter(([, value]) => value > 0);
@@ -1698,7 +1707,10 @@ function renderTravelExpenses() {
   if (!expensesListEl || !expensesEmptyEl) return;
   const expenses = selectedTrip?.expenses || [];
   expensesEmptyEl.hidden = expenses.length > 0;
-  expensesListEl.innerHTML = expenses
+  
+  const visibleExpenses = expensesListExpanded ? expenses : expenses.slice(0, 7);
+  
+  let html = visibleExpenses
     .map((expense) => `
       <article class="saved-route-item" data-trip-id="${selectedTrip.id}" data-expense-id="${expense.id}">
         <h3 class="saved-route-title">${expense.description || EXPENSE_CATEGORY_LABELS[expense.category] || "Gasto"}</h3>
@@ -1714,6 +1726,18 @@ function renderTravelExpenses() {
       </article>
     `)
     .join("");
+
+  if (expenses.length > 7) {
+    html += `
+      <div style="text-align: center; margin-top: 14px;">
+        <button type="button" class="btn btn-p" id="viewMoreExpensesBtn" style="padding: 0.5rem 1.2rem; font-size: 0.82rem;">
+          ${expensesListExpanded ? "Ver menos" : "Ver mais"}
+        </button>
+      </div>
+    `;
+  }
+  
+  expensesListEl.innerHTML = html;
 
   const reportMode = expenseReportTypeEl?.value || "day";
   renderExpenseReport(selectedTrip, reportMode);
@@ -3161,13 +3185,31 @@ function drawCommunityPoints() {
   }
 
   communityPoints.forEach((point) => {
+    if (selectedCommunityCategory !== "all" && point.category !== selectedCommunityCategory) return;
     const color = COMMUNITY_CATEGORY_COLORS[point.category] || "#334155";
     const label = COMMUNITY_CATEGORY_LABELS[point.category] || "Ponto";
+    const letterMap = { hotel: "H", fuel_station: "P", viewpoint: "M", alert: "A" };
+    const letter = letterMap[point.category] || "C";
+
+    let iconHtml = `<div style="width:18px;height:18px;border-radius:6px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px/1 Inter;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.26)">${letter}</div>`;
+    let iconSize = [18, 18];
+    let iconAnchor = [9, 9];
+
+    if (point.category === "support") {
+      iconHtml = `<div style="width:20px;height:20px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3);border:1.5px solid ${color}"><img src="./apoio-icon.png" style="width:12px;height:12px;object-fit:contain" alt="Apoio"></div>`;
+      iconSize = [20, 20];
+      iconAnchor = [10, 10];
+    } else if (point.category === "camping") {
+      iconHtml = `<div style="width:20px;height:20px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3);border:1.5px solid #fff;overflow:hidden;"><img src="./camping-icon.png" style="width:100%;height:100%;object-fit:cover;transform:scale(1.4);filter:invert(1) contrast(1.2);mix-blend-mode:screen;" alt="Camping"></div>`;
+      iconSize = [20, 20];
+      iconAnchor = [10, 10];
+    }
+
     const icon = L.divIcon({
       className: "community-point-icon",
-      html: `<div style="width:28px;height:28px;border-radius:8px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:800 11px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.26)">C</div>`,
-      iconSize: [28, 28],
-      iconAnchor: [14, 14]
+      html: iconHtml,
+      iconSize: iconSize,
+      iconAnchor: iconAnchor
     });
 
     const photoHtml = point.photo_url
@@ -3947,6 +3989,34 @@ if (catBar) {
     drawCommunityPoints();
   };
   catBar.appendChild(collabButton);
+
+  const collabFilterSelect = document.createElement("select");
+  collabFilterSelect.className = "pill";
+  collabFilterSelect.style.marginLeft = "8px";
+  collabFilterSelect.style.background = "#fff";
+  collabFilterSelect.style.color = "#1f2937";
+  collabFilterSelect.style.cursor = "pointer";
+  collabFilterSelect.style.width = "auto";
+  collabFilterSelect.style.flex = "0 0 auto";
+  collabFilterSelect.innerHTML = `
+    <option value="all">Todas as colaboraÃ§Ãµes</option>
+    <option value="camping">Camping</option>
+    <option value="hotel">Hotel/Pousada</option>
+    <option value="fuel_station">Posto</option>
+    <option value="viewpoint">Mirante</option>
+    <option value="alert">Alerta</option>
+    <option value="support">Ponto turistico importante</option>
+  `;
+  collabFilterSelect.value = selectedCommunityCategory;
+  collabFilterSelect.onchange = (e) => {
+    selectedCommunityCategory = e.target.value;
+    if (!showCommunityPoints) {
+      showCommunityPoints = true;
+      collabButton.classList.add("active");
+    }
+    drawCommunityPoints();
+  };
+  catBar.appendChild(collabFilterSelect);
 }
 
 maxPoiDistance = 999;
@@ -4216,6 +4286,7 @@ expenseFormEl?.addEventListener("submit", async (event) => {
   expenseFormEl.reset();
   if (expenseCurrencyEl) expenseCurrencyEl.value = "BRL";
   if (expenseRateEl) expenseRateEl.value = "1";
+  setExpenseDateToToday();
   setExpenseFormEnabled(true, trip);
 });
 
@@ -4225,6 +4296,7 @@ tripsListEl?.addEventListener("click", async (event) => {
   const tripId = item.dataset.tripId;
   const button = event.target.closest("button[data-action]");
   if (!button || button.dataset.action === "select-trip") {
+    expensesListExpanded = false;
     window.location.hash = `#expense-trip/${encodeURIComponent(tripId)}`;
     return;
   }
@@ -4238,6 +4310,13 @@ tripsListEl?.addEventListener("click", async (event) => {
 });
 
 expensesListEl?.addEventListener("click", async (event) => {
+  const viewMoreBtn = event.target.closest("#viewMoreExpensesBtn");
+  if (viewMoreBtn) {
+    expensesListExpanded = !expensesListExpanded;
+    renderTravelExpenses();
+    return;
+  }
+  
   const button = event.target.closest("button[data-action='delete-expense']");
   if (!button) return;
   const item = event.target.closest("[data-trip-id][data-expense-id]");
@@ -4351,6 +4430,7 @@ refreshSavedRoutes();
 refreshTravelExpenses();
 drawPoiMarkers();
 setupCommunityUi();
+setExpenseDateToToday();
 
 function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
   return days
