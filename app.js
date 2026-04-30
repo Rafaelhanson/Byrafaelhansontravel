@@ -1,4 +1,4 @@
-﻿function repairMojibake(value) {
+function repairMojibake(value) {
   if (typeof value !== "string" || !/[ÃÂâ€]/.test(value)) return value;
 
   try {
@@ -1494,7 +1494,20 @@ function getExpenseReportLabel(mode) {
 }
 
 function getPrintLogoHtml() {
-  return `<div class="print-logo"><img src="./overland-logo-print.png" alt="Viagens Cafes e Fotos Overland"></div>`;
+  const logoSrc = getPrintLogoSrc();
+  return `<div class="print-logo"><img src="${logoSrc}" alt="Viagens Cafes e Fotos Overland"></div>`;
+}
+
+function getPrintLogoSrc() {
+  try {
+    const href = String(window?.location?.href || "");
+    if (href) {
+      return new URL("overland-logo-print.png", href).href;
+    }
+  } catch (_error) {
+    // fallback abaixo
+  }
+  return "overland-logo-print.png";
 }
 
 function buildExpenseReportPrintHtml(trip) {
@@ -1532,8 +1545,19 @@ function buildExpenseReportPrintHtml(trip) {
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de gastos - ${normalizeUiText(trip?.name || "Viagem")}</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
-    .print-logo{height:82px;margin:0 0 18px;display:flex;align-items:flex-start}
-    .print-logo img{width:118px;max-height:78px;object-fit:contain;display:block}
+    .print-logo{
+      width:260px;
+      height:170px;
+      margin:0 0 8px;
+      overflow:hidden;
+    }
+    .print-logo img{
+      width:100%;
+      height:auto;
+      display:block;
+      object-fit:cover;
+      object-position:top center;
+    }
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
     h2{margin:22px 0 8px;font-size:18px;color:#102033}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
@@ -1802,8 +1826,19 @@ function buildRoutePdfHtml(route) {
 
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${routeName} - PDF</title><style>
     body{font-family:Arial,sans-serif;color:#1f2937;padding:26px}
-    .print-logo{height:82px;margin:0 0 18px;display:flex;align-items:flex-start}
-    .print-logo img{width:118px;max-height:78px;object-fit:contain;display:block}
+    .print-logo{
+      width:260px;
+      height:170px;
+      margin:0 0 8px;
+      overflow:hidden;
+    }
+    .print-logo img{
+      width:100%;
+      height:auto;
+      display:block;
+      object-fit:cover;
+      object-position:top center;
+    }
     h1{margin:0 0 6px;font-size:24px}.muted{color:#4b5563;margin:0 0 14px}
     .meta{margin:8px 0 16px;padding:12px;border:1px solid #dbe3ec;border-radius:10px;background:#f8fafc}
     table{width:100%;border-collapse:collapse;margin-top:10px}
