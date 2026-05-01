@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v13";
+﻿const CACHE_NAME = "by-rafael-hanson-v14";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -100,3 +100,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
