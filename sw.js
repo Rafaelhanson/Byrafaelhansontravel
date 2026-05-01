@@ -1,4 +1,4 @@
-const CACHE_NAME = "by-rafael-hanson-v12";
+const CACHE_NAME = "by-rafael-hanson-v13";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -9,12 +9,13 @@ const STATIC_ASSETS = [
   "./auth-config.js",
   "./auth.js",
   "./manifest.webmanifest",
-  "./assets/rafael-road-1.jpg",
-  "./assets/rafael-road-2.jpg",
-  "./assets/ushuaia-cover.jpg",
-  "./assets/torres-cover.jpg",
-  "./assets/puerto-madryn-cover.jpg",
-  "./assets/bariloche-cover.jpg",
+  "./rafael-road-1.jpg",
+  "./rafael-road-2.jpg",
+  "./ushuaia-cover.jpg",
+  "./torres-cover.jpg",
+  "./puerto-madryn-cover.jpg",
+  "./bariloche-cover.jpg",
+  "./logo.png.jpg",
   "./overland-logo-white.png",
   "./overland-logo-print.png",
   "./site-intro.jpg",

@@ -7,67 +7,215 @@
   <title>By Rafael Hanson • Login</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <style>
-    :root{--bg:#f3f4ef;--card:#fff;--text:#182230;--muted:#5f6b7a;--pine:#23433c;--accent:#e86c39;--border:#dfe4e8}
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family:Inter,system-ui,sans-serif;
-      background:var(--bg);
-      color:var(--text);
-      position:relative;
-      min-height:100vh;
+  <style>
+    :root {
+      --bg: #0b1d23;
+      --surface: rgba(15, 31, 34, 0.75);
+      --text: #e4f0ea;
+      --muted: #93b1a8;
+      --pine: #9fe0c4;
+      --accent: #e86c39;
+      --border: rgba(39, 68, 63, 0.4);
+      --radius: 28px;
     }
-    body::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      background:url("./assets/rafael-road-2.jpg") center center/cover no-repeat;
-      z-index:-2;
-      pointer-events:none;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: radial-gradient(circle at 10% -10%, #1e4a4f 0%, #14363e 36%, #0d2a31 62%, #0b1d23 100%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
     }
-    body::after{
-      content:"";
-      position:fixed;
-      inset:0;
-      background:rgba(14,23,33,.58);
-      z-index:-1;
-      pointer-events:none;
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: url("./rafael-road-2.jpg") center center/cover no-repeat;
+      opacity: 0.25;
+      z-index: -2;
+      pointer-events: none;
     }
-    .wrap{width:min(480px,calc(100% - 24px));margin:6vh auto;position:relative;z-index:1}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:18px}
-    h1{margin:.2rem 0 .3rem;font-size:1.8rem}
-    p{color:var(--muted);margin:.2rem 0 1rem}
-    label{display:block;font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 5px;color:#445}
-    input{width:100%;border:1px solid #ccd4dc;border-radius:12px;padding:.72rem .75rem;font-size:.98rem}
-    .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-    button{border:0;border-radius:999px;padding:.75rem 1rem;font-weight:700;cursor:pointer}
-    .primary{background:var(--accent);color:#fff}
-    .ghost{background:#fff;border:1px solid #ccd4dc;color:var(--text)}
-    .msg{margin-top:10px;font-size:.9rem}
-    .ok{color:#0f7a49}
-    .err{color:#9d2a2a}
-    .top-note{padding:10px;border:1px dashed #cbd5df;border-radius:12px;background:#f8fafc;font-size:.86rem;color:#415267}
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(10, 24, 30, 0.42), rgba(10, 24, 30, 0.72));
+      z-index: -1;
+      pointer-events: none;
+    }
+    .wrap {
+      width: min(420px, calc(100% - 32px));
+      position: relative;
+      z-index: 1;
+      animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      color: #e4f0ea;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: #effbf6;
+    }
+    .logo-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .login-logo {
+      width: 200px;
+      max-width: 100%;
+      height: auto;
+      filter: invert(1);
+      mix-blend-mode: screen;
+      display: block;
+    }
+    p {
+      color: #b8d4cc;
+      margin: 0 0 32px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+      color: var(--pine);
+      opacity: 0.85;
+    }
+    input {
+      width: 100%;
+      border: 1px solid rgba(121, 177, 155, 0.2);
+      background: rgba(13, 34, 31, 0.4);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      color: #fff;
+      margin-bottom: 24px;
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
+    }
+    input::placeholder {
+      color: rgba(159, 224, 196, 0.45);
+    }
+    input:focus {
+      outline: none;
+      border-color: rgba(134, 209, 165, 0.5);
+      background: rgba(13, 34, 31, 0.6);
+      box-shadow: 0 0 0 4px rgba(134, 209, 165, 0.1);
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    button {
+      flex: 1;
+      border: 0;
+      border-radius: 16px;
+      padding: 14px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: 'Inter', sans-serif;
+    }
+    .primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(232, 108, 57, 0.3);
+    }
+    .primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(232, 108, 57, 0.4);
+      filter: brightness(1.1);
+    }
+    .ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #e4f0ea;
+    }
+    .ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    .msg {
+      margin-top: 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      text-align: center;
+      padding: 10px;
+      border-radius: 12px;
+    }
+    .ok { background: rgba(15, 122, 73, 0.2); color: #72d39a; border: 1px solid rgba(15, 122, 73, 0.3); }
+    .err { background: rgba(157, 42, 42, 0.2); color: #f87171; border: 1px solid rgba(157, 42, 42, 0.3); }
+    .top-note {
+      padding: 14px;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 16px;
+      background: rgba(59, 130, 246, 0.1);
+      font-size: 0.82rem;
+      color: #93c5fd;
+      margin-bottom: 24px;
+      line-height: 1.4;
+    }
+    code { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
   </style>
 </head>
 <body>
   <main class="wrap">
     <section class="card">
-      <h1>By Rafael Hanson</h1>
-      <p>Entre com seu login para acessar o guia.</p>
-      <div id="configWarn" class="top-note" hidden>
-        Para ativar o login, preencha <b>supabaseUrl</b> e <b>supabaseAnonKey</b> no arquivo <code>auth-config.js</code>.
+      <div class="logo-wrap">
+        <img src="./logo.png.jpg" alt="Viagens Cafés e Fotos" class="login-logo">
       </div>
-      <label for="email">E-mail</label>
-      <input id="email" type="email" placeholder="seu@email.com" />
-      <label for="password">Senha</label>
-      <input id="password" type="password" placeholder="Sua senha" />
-      <label for="confirmPassword">Confirmar senha</label>
-      <input id="confirmPassword" type="password" placeholder="Repita sua senha" />
+      <p>Entre ou crie sua conta para planejar.</p>
+      
+      <div id="configWarn" class="top-note" hidden>
+        Atenção: Configure as chaves do Supabase no arquivo <code>auth-config.js</code> para habilitar o login.
+      </div>
+
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" type="email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" type="password" placeholder="Sua senha">
+      </div>
+
+      <div id="signupFields" style="display: none;">
+        <label for="confirmPassword">Confirmar senha</label>
+        <input id="confirmPassword" type="password" placeholder="Repita sua senha">
+      </div>
+
       <div class="row">
         <button id="loginBtn" class="primary">Entrar</button>
-        <button id="signupBtn" class="ghost">Criar conta</button>
+        <button id="toggleSignupBtn" class="ghost">Criar conta</button>
       </div>
-      <div id="msg" class="msg"></div>
+
+      <div id="msg" class="msg" hidden></div>
     </section>
   </main>
 
@@ -81,11 +229,18 @@
     const loginBtn = document.getElementById("loginBtn");
     const signupBtn = document.getElementById("signupBtn");
     const msgEl = document.getElementById("msg");
-    const configWarnEl = document.getElementById("configWarn");
+    const signupFields = document.getElementById("signupFields");
+    const toggleSignupBtn = document.getElementById("toggleSignupBtn");
+    let isSignupMode = false;
 
     function showMessage(text, type) {
+      if (!text) {
+        msgEl.hidden = true;
+        return;
+      }
       msgEl.textContent = text;
       msgEl.className = `msg ${type || ""}`;
+      msgEl.hidden = false;
     }
 
     async function bootstrap() {
@@ -97,30 +252,38 @@
       }
     }
 
-    loginBtn.addEventListener("click", async () => {
-      try {
-        showMessage("");
-        await window.AppAuth.signIn(emailEl.value.trim(), passwordEl.value);
-      } catch (error) {
-        showMessage(error.message || "Não foi possível entrar.", "err");
-      }
+    toggleSignupBtn.addEventListener("click", () => {
+      isSignupMode = !isSignupMode;
+      signupFields.style.display = isSignupMode ? "block" : "none";
+      loginBtn.textContent = isSignupMode ? "Registrar" : "Entrar";
+      toggleSignupBtn.textContent = isSignupMode ? "Voltar ao login" : "Criar conta";
+      showMessage("");
     });
 
-    signupBtn.addEventListener("click", async () => {
+    loginBtn.addEventListener("click", async () => {
+      const email = emailEl.value.trim();
+      const password = passwordEl.value;
+
+      if (!email || !password) {
+        showMessage("Por favor, preencha e-mail e senha.", "err");
+        return;
+      }
+
       try {
         showMessage("");
-        if (!passwordEl.value || !confirmPasswordEl.value) {
-          showMessage("Preencha senha e confirmação de senha.", "err");
-          return;
+        if (isSignupMode) {
+          const confirmPassword = confirmPasswordEl.value;
+          if (password !== confirmPassword) {
+            showMessage("As senhas não coincidem.", "err");
+            return;
+          }
+          await window.AppAuth.signUp(email, password);
+          showMessage("Conta criada! Verifique seu e-mail e aguarde aprovação.", "ok");
+        } else {
+          await window.AppAuth.signIn(email, password);
         }
-        if (passwordEl.value !== confirmPasswordEl.value) {
-          showMessage("As senhas não coincidem. Confira e tente novamente.", "err");
-          return;
-        }
-        await window.AppAuth.signUp(emailEl.value.trim(), passwordEl.value);
-        showMessage("Conta criada. Verifique seu e-mail e depois aguarde aprovação para liberar o acesso.", "ok");
       } catch (error) {
-        showMessage(error.message || "Não foi possível criar a conta.", "err");
+        showMessage(error.message || "Ocorreu um erro. Tente novamente.", "err");
       }
     });
 
