@@ -4,15 +4,15 @@ window.APP_AUTH_CONFIG = {
   redirectAfterLogin: "./index.html",
   supabaseUrl: "https://dxdmqarllnljhhddyxsz.supabase.co",
   supabaseAnonKey: "sb_publishable_D5e4vSZGg5R-pO1AB819tg_aGEY1ycc",
-  // Op??o 2: acesso apenas para usu?rios aprovados (produto pago)
-  // Se true, o login s? entra para quem estiver na whitelist abaixo
+  // Opção 2: acesso apenas para usuários aprovados (produto pago)
+  // Se true, o login só entra para quem estiver na whitelist abaixo
   // ou na tabela do Supabase configurada em approvedUsersTable.
   requireApproval: true,
-  // Whitelist r?pida para testes (adicione/remova emails aqui).
+  // Whitelist rápida para testes (adicione/remova emails aqui).
   approvedEmails: [
     "rafaelhansonfotografo@gmail.com"
   ],
-  // Opcional: tabela com usu?rios aprovados no Supabase.
+  // Opcional: tabela com usuários aprovados no Supabase.
   // Estrutura esperada: email (text), active (boolean).
   approvedUsersTable: "approved_users",
   // Se true, falha fechado quando tabela não existe/erro de leitura.
@@ -26,7 +26,7 @@ window.APP_AUTH_CONFIG = {
   // Estrutura criada no arquivo supabase_access_setup.sql.
   userDataTable: "app_user_data",
   // Opcional: chave do Google Maps JavaScript API com Places API (New) habilitada.
-  // Use uma chave de navegador com restri??o por dom?nio no Google Cloud.
+  // Use uma chave de navegador com restrição por domínio no Google Cloud.
   googleMapsApiKey: ""
 };
 

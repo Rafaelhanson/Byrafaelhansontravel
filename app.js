@@ -40,7 +40,8 @@ function repairMojibake(value) {
     ["ï¿½", ""], ["vocï¿½", "você"], ["Voc?", "Você"], ["voc?", "você"], ["n?o", "não"],
     ["Bem-vindo ? sua próxima aventura", "Bem-vindo à sua próxima aventura"],
     [" ? sua pr", " à sua pr"], [" ?s minhas", " às minhas"], [" ? calculada", " é calculada"],
-    [" ? e assim", " — e assim"], [" ? o destino ideal", " é o destino ideal"]
+    [" ? e assim", " — e assim"], [" ? o destino ideal", " é o destino ideal"],
+    ["mapsóq=", "maps?q="]
   ];
 
   replacements.forEach(([broken, fixed]) => {
@@ -1024,15 +1025,15 @@ function renderCollabDetail(item) {
   const createdAt = item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "-";
   const category = COMMUNITY_CATEGORY_LABELS[item.category] || item.category || "Ponto";
   const photoHtml = item.photo_url ? `<img src="${item.photo_url}" alt="foto colaboração" class="collab-detail-photo">` : "";
-  const mapsUrl = `https://www.google.com/mapsóq=${item.lat},${item.lon}`;
+  const mapsUrl = `https://www.google.com/maps?q=${item.lat},${item.lon}`;
   collabDetailBodyEl.innerHTML = `
     <article class="collab-detail-card">
       <div class="collab-detail-head">
         <div>
-          <h3 class="collab-detail-title">${item.name || "Ponto colaborativo"}</h3>
-          <div class="collab-detail-meta">${category} ? ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
+          <h3 class="collab-detail-title">${normalizeUiText(item.name || "Ponto colaborativo")}</h3>
+          <div class="collab-detail-meta">${normalizeUiText(category)} • ${Number(item.lat).toFixed(5)}, ${Number(item.lon).toFixed(5)}</div>
           <div class="collab-detail-meta">Criado em: ${createdAt}</div>
-          <p class="collab-detail-meta" style="margin-top:8px">${item.description || "Sem descricao."}</p>
+          <p class="collab-detail-meta" style="margin-top:8px">${normalizeUiText(item.description || "Sem descrição.")}</p>
           <p class="collab-detail-meta"><a href="${mapsUrl}" target="_blank" rel="noreferrer">Abrir no Google Maps</a></p>
         </div>
         <div class="saved-route-actions" style="margin-top:0">
@@ -4085,13 +4086,13 @@ const EBOOK_CHAPTERS = {
     chapter: "Capítulo Ushuaia",
     bestSeason: "Novembro a março",
     highlights: ["Canal Beagle", "Parque Nacional Tierra del Fuego", "Fim do Mundo"],
-    logistics: ["Cidade base com boa rede hoteleira", "ponto final clássico da ida", "?tima para revisão do carro"],
-    tips: ["Verifique previsão de vento e frio", "reserve navega??o no Beagle", "deixe dias extras para clima variável"]
+    logistics: ["Cidade base com boa rede hoteleira", "ponto final clássico da ida", "Ótima para revisão do carro"],
+    tips: ["Verifique previsão de vento e frio", "reserve navegação no Beagle", "deixe dias extras para clima variável"]
   },
   torres: {
     chapter: "Capítulo Torres del Paine",
     bestSeason: "Outubro a abril",
-    highlights: ["Mirantes das torres", "lagos e trilhas cênicas", "paisagem ?cone da Patagônia chilena"],
+    highlights: ["Mirantes das torres", "lagos e trilhas cênicas", "paisagem ícone da Patagônia chilena"],
     logistics: ["Base comum em Puerto Natales", "controle de documentos de fronteira", "parque com infraestrutura organizada"],
     tips: ["Compre ingressos oficiais antecipadamente", "leve roupa por camadas", "evite dirigir longos trechos noturnos na região"]
   },
@@ -4107,7 +4108,7 @@ const EBOOK_CHAPTERS = {
     bestSeason: "Novembro a março",
     highlights: ["Fitz Roy", "trilhas e mirantes", "vibe de vila de montanha"],
     logistics: ["Base principal para trekking", "acesso por estrada cênica", "estrutura menor que Calafate"],
-    tips: ["Saia cedo para trilhas longas", "acompanhe vento e chuva", "leve ?gua e alimentação para os percursos"]
+    tips: ["Saia cedo para trilhas longas", "acompanhe vento e chuva", "leve água e alimentação para os percursos"]
   },
   bariloche: {
     chapter: "Capítulo Bariloche",
@@ -4156,7 +4157,7 @@ function renderPlacesGrid() {
             <div class="tiny">${placeCategoryLabel(poi.category)}</div>
             <h4>${poi.name}</h4>
             <p class="tiny">${poi.description}</p>
-            <p class="tiny">${poi.city} ââ‚¬Â¢ <a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a></p>
+            <p class="tiny">${poi.city} • <a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a></p>
             <div class="place-actions">
               <a class="link-btn" href="./local.html?place=${poi.id}">Abrir página</a>
             </div>

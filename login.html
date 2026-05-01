@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="@23433c" />
-  <title>By Rafael Hanson ? Login</title>
+  <meta name="theme-color" content="#23433c" />
+  <title>By Rafael Hanson - Login</title>
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -172,16 +172,24 @@
       text-align: center;
     }
     .lp-link a {
-      color: rgba(159, 224, 196, 0.65);
-      font: 500 0.85rem/1 Inter, sans-serif;
+      display: inline-block;
+      min-width: 100%;
+      text-align: center;
+      color: #e9fff5;
+      font: 700 0.92rem/1 Inter, sans-serif;
       text-decoration: none;
-      border-bottom: 1px solid rgba(159, 224, 196, 0.25);
-      padding-bottom: 2px;
-      transition: all .2s;
+      border: 1px solid rgba(159, 224, 196, 0.35);
+      background: rgba(16, 37, 33, 0.75);
+      border-radius: 14px;
+      padding: 13px 14px;
+      transition: all .2s ease;
+      box-shadow: 0 8px 20px rgba(0,0,0,.22);
     }
     .lp-link a:hover {
-      color: #9fe0c4;
-      border-bottom-color: #9fe0c4;
+      transform: translateY(-1px);
+      border-color: rgba(159, 224, 196, 0.65);
+      background: rgba(19, 49, 43, 0.9);
+      box-shadow: 0 12px 26px rgba(0,0,0,.28);
     }
   </style>
 </head>
@@ -221,9 +229,7 @@
     </section>
 
     <div class="lp-link">
-      <a href="https://patagonia-roadtrip-hub.lovable.app" target="_blank" rel="noreferrer">
-        👉 Conheça o Guia Completo Patagônia 👈
-      </a>
+      <a id="landingLink" href="./landing/index.html">Conhe&ccedil;a o Guia Completo Patag&ocirc;nia</a>
     </div>
   </div>
 
@@ -283,6 +289,19 @@
       }
     });
 
+    (function setupLandingLink() {
+      const link = document.getElementById("landingLink");
+      if (!link) return;
+
+      // Local (arquivo): usa servidor local para evitar tela branca do file:// em app React
+      if (window.location.protocol === "file:") {
+        link.href = "http://127.0.0.1:5500/landing/";
+        return;
+      }
+
+      // Produção/deploy: abre no mesmo domínio
+      link.href = "./landing/";
+    })();
     bootstrap();
   </script>
 </body>
