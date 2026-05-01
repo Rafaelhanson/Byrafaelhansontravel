@@ -1,4 +1,4 @@
-(function attachAuth(windowObj) {
+﻿(function attachAuth(windowObj) {
   const config = windowObj.APP_AUTH_CONFIG || {};
   const loginPath = config.loginPath || "./login.html";
   const approvedUsersTable = config.approvedUsersTable || "approved_users";
@@ -27,10 +27,22 @@
     window.location.href = withNext(loginPath);
   }
 
+  function sanitizeNextPath(nextValue) {
+    if (!nextValue) return null;
+    try {
+      const candidate = new URL(nextValue, window.location.origin);
+      if (candidate.origin !== window.location.origin) return null;
+      return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+    } catch (_error) {
+      return null;
+    }
+  }
+
   function redirectAfterLogin() {
     const params = new URLSearchParams(window.location.search);
-    const next = params.get("next") || config.redirectAfterLogin || "./index.html";
-    window.location.href = next;
+    const safeNext = sanitizeNextPath(params.get("next"));
+    const fallback = config.redirectAfterLogin || "./index.html";
+    window.location.href = safeNext || fallback;
   }
 
   function createClient() {
@@ -114,7 +126,7 @@
     if (!config.enabled) return true;
     if (isLoginPage()) return true;
     if (!client) {
-      alert("Autenticação não configurada. Preencha supabaseUrl e supabaseAnonKey em auth-config.js.");
+      alert("AutenticaÃ§Ã£o nÃ£o configurada. Preencha supabaseUrl e supabaseAnonKey em auth-config.js.");
       redirectToLogin();
       return false;
     }
@@ -126,14 +138,14 @@
     const approved = await isUserApproved(session.user?.email || "");
     if (!approved) {
       await signOut();
-      alert("Sua conta ainda não foi liberada. Aguarde aprovação do administrador.");
+      alert("Sua conta ainda nÃ£o foi liberada. Aguarde aprovaÃ§Ã£o do administrador.");
       return false;
     }
     return true;
   }
 
   async function signIn(email, password) {
-    if (!client) throw new Error("Supabase não configurado.");
+    if (!client) throw new Error("Supabase nÃ£o configurado.");
     const normalizedEmail = normalizeEmail(email);
     const { error } = await client.auth.signInWithPassword({ email: normalizedEmail, password });
     if (error) throw error;
@@ -141,13 +153,13 @@
     const approved = await isUserApproved(normalizedEmail);
     if (!approved) {
       await client.auth.signOut();
-      throw new Error("Sua conta ainda não foi liberada. Aguarde aprovação do administrador.");
+      throw new Error("Sua conta ainda nÃ£o foi liberada. Aguarde aprovaÃ§Ã£o do administrador.");
     }
     redirectAfterLogin();
   }
 
   async function signUp(email, password) {
-    if (!client) throw new Error("Supabase não configurado.");
+    if (!client) throw new Error("Supabase nÃ£o configurado.");
     const normalizedEmail = normalizeEmail(email);
     const { data, error } = await client.auth.signUp({ email: normalizedEmail, password });
     if (error) throw error;
@@ -213,3 +225,4 @@
     isUserApproved
   };
 })(window);
+
