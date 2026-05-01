@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#23433c" />
-  <title>By Rafael Hanson • Login</title>
+  <meta name="theme-color" content="@23433c" />
+  <title>By Rafael Hanson ? Login</title>
   <link rel="manifest" href="./manifest.webmanifest" />
-  <style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0b1d23;
       --surface: rgba(15, 31, 34, 0.75);
       --text: #e4f0ea;
       --muted: #93b1a8;
@@ -25,10 +26,11 @@
       background: radial-gradient(circle at 10% -10%, #1e4a4f 0%, #14363e 36%, #0d2a31 62%, #0b1d23 100%);
       color: var(--text);
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      overflow: hidden;
+      padding: 24px 16px;
     }
     body::before {
       content: "";
@@ -48,7 +50,7 @@
       pointer-events: none;
     }
     .wrap {
-      width: min(420px, calc(100% - 32px));
+      width: min(420px, 100%);
       position: relative;
       z-index: 1;
       animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -67,18 +69,10 @@
       box-shadow: 0 32px 64px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
       color: #e4f0ea;
     }
-    h1 {
-      margin: 0 0 8px;
-      font-family: 'Playfair Display', serif;
-      font-size: 2.2rem;
-      font-weight: 900;
-      letter-spacing: -0.02em;
-      color: #effbf6;
-    }
     .logo-wrap {
       display: flex;
       justify-content: center;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
     .login-logo {
       width: 200px;
@@ -90,9 +84,10 @@
     }
     p {
       color: #b8d4cc;
-      margin: 0 0 32px;
+      margin: 0 0 28px;
       font-size: 0.95rem;
       line-height: 1.5;
+      text-align: center;
     }
     label {
       display: block;
@@ -112,13 +107,11 @@
       padding: 14px 16px;
       font-size: 1rem;
       color: #fff;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       transition: all 0.2s ease;
       font-family: 'Inter', sans-serif;
     }
-    input::placeholder {
-      color: rgba(159, 224, 196, 0.45);
-    }
+    input::placeholder { color: rgba(159, 224, 196, 0.45); }
     input:focus {
       outline: none;
       border-color: rgba(134, 209, 165, 0.5);
@@ -128,7 +121,7 @@
     .row {
       display: flex;
       gap: 12px;
-      margin-top: 8px;
+      margin-top: 4px;
     }
     button {
       flex: 1;
@@ -146,22 +139,15 @@
       color: #fff;
       box-shadow: 0 8px 24px rgba(232, 108, 57, 0.3);
     }
-    .primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(232, 108, 57, 0.4);
-      filter: brightness(1.1);
-    }
+    .primary:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(232, 108, 57, 0.4); filter: brightness(1.1); }
     .ghost {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       color: #e4f0ea;
     }
-    .ghost:hover {
-      background: rgba(255, 255, 255, 0.1);
-      transform: translateY(-2px);
-    }
+    .ghost:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
     .msg {
-      margin-top: 20px;
+      margin-top: 16px;
       font-size: 0.88rem;
       font-weight: 500;
       text-align: center;
@@ -181,16 +167,32 @@
       line-height: 1.4;
     }
     code { font-family: monospace; background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; }
+    .lp-link {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .lp-link a {
+      color: rgba(159, 224, 196, 0.65);
+      font: 500 0.85rem/1 Inter, sans-serif;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(159, 224, 196, 0.25);
+      padding-bottom: 2px;
+      transition: all .2s;
+    }
+    .lp-link a:hover {
+      color: #9fe0c4;
+      border-bottom-color: #9fe0c4;
+    }
   </style>
 </head>
 <body>
-  <main class="wrap">
+  <div class="wrap">
     <section class="card">
       <div class="logo-wrap">
         <img src="./logo.png.jpg" alt="Viagens Cafés e Fotos" class="login-logo">
       </div>
       <p>Entre ou crie sua conta para planejar.</p>
-      
+
       <div id="configWarn" class="top-note" hidden>
         Atenção: Configure as chaves do Supabase no arquivo <code>auth-config.js</code> para habilitar o login.
       </div>
@@ -217,7 +219,13 @@
 
       <div id="msg" class="msg" hidden></div>
     </section>
-  </main>
+
+    <div class="lp-link">
+      <a href="https://patagonia-roadtrip-hub.lovable.app" target="_blank" rel="noreferrer">
+        👉 Conheça o Guia Completo Patagônia 👈
+      </a>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./auth-config.js"></script>
@@ -227,17 +235,14 @@
     const passwordEl = document.getElementById("password");
     const confirmPasswordEl = document.getElementById("confirmPassword");
     const loginBtn = document.getElementById("loginBtn");
-    const signupBtn = document.getElementById("signupBtn");
     const msgEl = document.getElementById("msg");
+    const configWarnEl = document.getElementById("configWarn");
     const signupFields = document.getElementById("signupFields");
     const toggleSignupBtn = document.getElementById("toggleSignupBtn");
     let isSignupMode = false;
 
     function showMessage(text, type) {
-      if (!text) {
-        msgEl.hidden = true;
-        return;
-      }
+      if (!text) { msgEl.hidden = true; return; }
       msgEl.textContent = text;
       msgEl.className = `msg ${type || ""}`;
       msgEl.hidden = false;
@@ -263,20 +268,11 @@
     loginBtn.addEventListener("click", async () => {
       const email = emailEl.value.trim();
       const password = passwordEl.value;
-
-      if (!email || !password) {
-        showMessage("Por favor, preencha e-mail e senha.", "err");
-        return;
-      }
-
+      if (!email || !password) { showMessage("Por favor, preencha e-mail e senha.", "err"); return; }
       try {
         showMessage("");
         if (isSignupMode) {
-          const confirmPassword = confirmPasswordEl.value;
-          if (password !== confirmPassword) {
-            showMessage("As senhas não coincidem.", "err");
-            return;
-          }
+          if (password !== confirmPasswordEl.value) { showMessage("As senhas não coincidem.", "err"); return; }
           await window.AppAuth.signUp(email, password);
           showMessage("Conta criada! Verifique seu e-mail e aguarde aprovação.", "ok");
         } else {
