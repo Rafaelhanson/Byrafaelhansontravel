@@ -130,12 +130,12 @@ const POIS = [
 ];
 
 const STAGES = [
-  { id: "s1", title: "Etapa 1: Brasil atÃ© Ushuaia", sum: "LogÃ­stica e fronteiras.", km: 4300, time: "6-9 dias", must: ["Canal Beagle", "Tierra del Fuego"], sleep: ["RÃ­o Gallegos", "RÃ­o Grande", "Ushuaia"], tips: ["AbasteÃ§a acima de meio tanque"] },
-  { id: "s2", title: "Etapa 2: Ushuaia atÃ© Torres del Paine", sum: "Trecho com vento e fronteira.", km: 820, time: "2-3 dias", must: ["Miradores"], sleep: ["RÃ­o Gallegos", "Puerto Natales"], tips: ["Checar horÃ¡rios de fronteira"] },
-  { id: "s3", title: "Etapa 3: Torres del Paine atÃ© El ChaltÃ©n / El Calafate", sum: "Parques e glaciares.", km: 620, time: "3-4 dias", must: ["Perito Moreno", "Fitz Roy"], sleep: ["El Calafate", "El ChaltÃ©n"], tips: ["Reserve ingressos"] },
-  { id: "s4", title: "Etapa 4: El ChaltÃ©n atÃ© Bariloche", sum: "Subida cÃªnica.", km: 1450, time: "3-5 dias", must: ["Valle Encantado"], sleep: ["NeuquÃ©n", "Bariloche"], tips: ["Planeje alimentaÃ§Ã£o de estrada"] },
-  { id: "s5", title: "Etapa 5: Bariloche atÃ© Buenos Aires", sum: "Natureza para cidade.", km: 1600, time: "3-4 dias", must: ["Laguna de GÃ³mez"], sleep: ["JunÃ­n", "Buenos Aires"], tips: ["RevisÃ£o leve do carro"] },
-  { id: "s6", title: "Etapa 6: Buenos Aires atÃ© Brasil", sum: "Retorno organizado.", km: 1250, time: "2-3 dias", must: ["LihuÃ© Calel"], sleep: ["Paso de los Libres"], tips: ["Planeje cÃ¢mbio final"] }
+  { id: "s1", title: "Etapa 1: Brasil até Ushuaia", sum: "Logística e fronteiras.", km: 4300, time: "6-9 dias", must: ["Canal Beagle", "Tierra del Fuego"], sleep: ["Río Gallegos", "Río Grande", "Ushuaia"], tips: ["Abasteça acima de meio tanque"] },
+  { id: "s2", title: "Etapa 2: Ushuaia até Torres del Paine", sum: "Trecho com vento e fronteira.", km: 820, time: "2-3 dias", must: ["Miradores"], sleep: ["Río Gallegos", "Puerto Natales"], tips: ["Checar horários de fronteira"] },
+  { id: "s3", title: "Etapa 3: Torres del Paine até El Chaltén / El Calafate", sum: "Parques e glaciares.", km: 620, time: "3-4 dias", must: ["Perito Moreno", "Fitz Roy"], sleep: ["El Calafate", "El Chaltén"], tips: ["Reserve ingressos"] },
+  { id: "s4", title: "Etapa 4: El Chaltén até Bariloche", sum: "Subida cênica.", km: 1450, time: "3-5 dias", must: ["Valle Encantado"], sleep: ["Neuquén", "Bariloche"], tips: ["Planeje alimentação de estrada"] },
+  { id: "s5", title: "Etapa 5: Bariloche até Buenos Aires", sum: "Natureza para cidade.", km: 1600, time: "3-4 dias", must: ["Laguna de Gómez"], sleep: ["Junín", "Buenos Aires"], tips: ["Revisão leve do carro"] },
+  { id: "s6", title: "Etapa 6: Buenos Aires até Brasil", sum: "Retorno organizado.", km: 1250, time: "2-3 dias", must: ["Lihué Calel"], sleep: ["Paso de los Libres"], tips: ["Planeje câmbio final"] }
 ];
 
 const TOPICS = [
@@ -2226,16 +2226,7 @@ async function applySavedRoute(route) {
   warnEl.textContent = "Rota carregada em Minhas rotas.";
 }
 
-function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
-  return days
-    .map((day) => {
-      const borderHtml = day.borderCrossing
-        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
-        : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
-    })
-    .join("");
-}
+
 
 function applySavedSnapshotToUi(route) {
   if (!Array.isArray(route.routeCoords) || route.routeCoords.length < 2) return false;
@@ -2270,16 +2261,7 @@ function applySavedSnapshotToUi(route) {
   return true;
 }
 
-function renderDaysHtml(days = [], style = "fast", limitMode = "km") {
-  return days
-    .map((day) => {
-      const borderHtml = day.borderCrossing
-        ? `<div class="tiny" style="margin-top:6px;color:#b42318;font-weight:700">Fronteira/aduana neste dia: ${day.borderText}</div>`
-        : "";
-      return `<article class="day"><div class="tiny">Dia ${day.day}</div><b>${day.from} â†’ ${day.to}</b><div class="tiny">${day.km} km â€¢ ${day.hours} h</div><div class="tiny">${sleepByStyle(style, day.to)}</div><div class="tiny">Parada prÃ³xima da meta diÃ¡ria (${limitMode === "hours" ? "Â±45min" : "Â±50km"}).</div>${borderHtml}</article>`;
-    })
-    .join("");
-}
+
 
 function openRouteInFullView(context = "planner") {
   routeOpenContext = context;
@@ -3161,15 +3143,23 @@ function drawPoiMarkers() {
   visible.forEach((poi) => {
     const categoryLabel = poi.category === "fuel_station" ? "Posto" : poi.category === "hotel" ? "Hotel" : "Camping";
     const color = poi.category === "fuel_station" ? "#1d4ed8" : poi.category === "hotel" ? "#7c3aed" : "#166534";
-    const letter = poi.category === "fuel_station" ? "P" : poi.category === "hotel" ? "H" : "C";
+    const letterMap = { fuel_station: "P", hotel: "H", camping: "C" };
+    const letter = letterMap[poi.category] || "C";
+    
+    let iconHtml = `<div style="width:26px;height:26px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)">${letter}</div>`;
+    
+    if (poi.category === "camping") {
+      iconHtml = `<div style="width:28px;height:28px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2px solid #fff;overflow:hidden;"><img src="./camping-icon.png" style="width:100%;height:100%;object-fit:cover;transform:scale(1.4);filter:invert(1) contrast(1.2);mix-blend-mode:screen;" alt="Camping"></div>`;
+    }
+
     const icon = L.divIcon({
       className: "route-poi-icon",
-      html: `<div style="width:26px;height:26px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)">${letter}</div>`,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13]
+      html: iconHtml,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
     });
     const marker = L.marker([poi.lat, poi.lng], { icon }).bindPopup(
-      `<b>${poi.name}</b><br><small>${categoryLabel} â€¢ ${poi.city}</small><p>${poi.description}</p><a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a>`
+      `<b>${poi.name}</b><br><small>${categoryLabel} • ${poi.city}</small><p style="margin:6px 0 8px">${poi.description}</p><a href="${poi.maps}" target="_blank" rel="noreferrer">Google Maps</a>`
     );
     marker.addTo(poisLayer);
   });
@@ -3993,13 +3983,14 @@ if (catBar) {
   const collabFilterSelect = document.createElement("select");
   collabFilterSelect.className = "pill";
   collabFilterSelect.style.marginLeft = "8px";
-  collabFilterSelect.style.background = "#fff";
-  collabFilterSelect.style.color = "#1f2937";
+  collabFilterSelect.style.background = "#0d221f";
+  collabFilterSelect.style.color = "#e7edf7";
+  collabFilterSelect.style.border = "1px solid rgba(121,177,155,0.3)";
   collabFilterSelect.style.cursor = "pointer";
   collabFilterSelect.style.width = "auto";
   collabFilterSelect.style.flex = "0 0 auto";
   collabFilterSelect.innerHTML = `
-    <option value="all">Todas as colaboraÃ§Ãµes</option>
+    <option value="all">Todas as colaborações</option>
     <option value="camping">Camping</option>
     <option value="hotel">Hotel/Pousada</option>
     <option value="fuel_station">Posto</option>
