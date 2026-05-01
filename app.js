@@ -613,7 +613,7 @@ const COMMUNITY_CATEGORY_LABELS = {
   fuel_station: "Posto",
   viewpoint: "Mirante",
   alert: "Alerta",
-  support: "Ponto turistico importante"
+  support: "Ponto de Apoio"
 };
 
 const COMMUNITY_CATEGORY_COLORS = {
@@ -3146,7 +3146,7 @@ function drawPoiMarkers() {
     const letterMap = { fuel_station: "P", hotel: "H", camping: "C" };
     const letter = letterMap[poi.category] || "C";
     
-    let iconHtml = `<div style="width:26px;height:26px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.28)">${letter}</div>`;
+    let iconHtml = `<div style="width:28px;height:28px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${letter}</div>`;
     
     if (poi.category === "camping") {
       iconHtml = `<div style="width:28px;height:28px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2px solid #fff;overflow:hidden;"><img src="./camping-icon.png" style="width:100%;height:100%;object-fit:cover;transform:scale(1.4);filter:invert(1) contrast(1.2);mix-blend-mode:screen;" alt="Camping"></div>`;
@@ -3181,18 +3181,14 @@ function drawCommunityPoints() {
     const letterMap = { hotel: "H", fuel_station: "P", viewpoint: "M", alert: "A" };
     const letter = letterMap[point.category] || "C";
 
-    let iconHtml = `<div style="width:18px;height:18px;border-radius:6px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:800 10px/1 Inter;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.26)">${letter}</div>`;
-    let iconSize = [18, 18];
-    let iconAnchor = [9, 9];
+    let iconHtml = `<div style="width:28px;height:28px;border-radius:999px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:800 13px/1 Inter;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${letter}</div>`;
+    let iconSize = [28, 28];
+    let iconAnchor = [14, 14];
 
     if (point.category === "support") {
-      iconHtml = `<div style="width:20px;height:20px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3);border:1.5px solid ${color}"><img src="./apoio-icon.png" style="width:12px;height:12px;object-fit:contain" alt="Apoio"></div>`;
-      iconSize = [20, 20];
-      iconAnchor = [10, 10];
+      iconHtml = `<div style="width:28px;height:28px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2px solid ${color}"><img src="./apoio-icon.png" style="width:16px;height:16px;object-fit:contain" alt="Apoio"></div>`;
     } else if (point.category === "camping") {
-      iconHtml = `<div style="width:20px;height:20px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.3);border:1.5px solid #fff;overflow:hidden;"><img src="./camping-icon.png" style="width:100%;height:100%;object-fit:cover;transform:scale(1.4);filter:invert(1) contrast(1.2);mix-blend-mode:screen;" alt="Camping"></div>`;
-      iconSize = [20, 20];
-      iconAnchor = [10, 10];
+      iconHtml = `<div style="width:28px;height:28px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);border:2px solid #fff;overflow:hidden;"><img src="./camping-icon.png" style="width:100%;height:100%;object-fit:cover;transform:scale(1.4);filter:invert(1) contrast(1.2);mix-blend-mode:screen;" alt="Camping"></div>`;
     }
 
     const icon = L.divIcon({
