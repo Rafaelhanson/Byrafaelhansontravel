@@ -229,7 +229,7 @@
     </section>
 
     <div class="lp-link">
-      <a id="landingLink" href="./landing/index.html">Conhe&ccedil;a o Guia Completo Patag&ocirc;nia</a>
+      <a id="landingLink" href="./ebook.html">Conhe&ccedil;a o Guia Completo Patag&ocirc;nia</a>
     </div>
   </div>
 
@@ -293,16 +293,16 @@
       const link = document.getElementById("landingLink");
       if (!link) return;
 
-      // Local (arquivo): usa servidor local para evitar tela branca do file:// em app React
+      // Local (file://): abre pelo servidor local
       if (window.location.protocol === "file:") {
-        link.href = "http://127.0.0.1:5500/landing/";
+        link.href = "http://127.0.0.1:5500/ebook.html";
         return;
       }
 
-      // Produção/deploy: abre no mesmo domínio
-      link.href = "./landing/";
+      // Mesmo domínio (deploy)
+      link.href = "./ebook.html";
     })();
-    bootstrap();
+bootstrap();
   </script>
 </body>
 </html>
