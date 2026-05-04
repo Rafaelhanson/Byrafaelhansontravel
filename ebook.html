@@ -42,5 +42,46 @@ fbq('track', 'PageView');
 src="https://www.facebook.com/tr?id=1291905278984754&ev=PageView&noscript=1"
 /></noscript>
     <div id="root"></div>
+    <script>
+(function setupCheckoutTracking() {
+  function trackInitiateCheckout() {
+    if (typeof window.fbq === "function") {
+      window.fbq("track", "InitiateCheckout", { source: "ebook_landing" });
+    }
+  }
+
+  function isCheckoutUrl(rawUrl) {
+    try {
+      const u = new URL(String(rawUrl), window.location.href);
+      return /hotmart|pay\.hotmart|checkout|monetizze|kiwify/i.test(u.href);
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  const originalOpen = window.open;
+  if (typeof originalOpen === "function") {
+    window.open = function patchedOpen(url, ...args) {
+      if (url && isCheckoutUrl(url)) trackInitiateCheckout();
+      return originalOpen.call(window, url, ...args);
+    };
+  }
+
+  document.addEventListener("click", function onAnyClick(event) {
+    const el = event.target && event.target.closest ? event.target.closest("a, button, [role='button']") : null;
+    if (!el) return;
+
+    const href = el.getAttribute ? el.getAttribute("href") : "";
+    const text = (el.innerText || el.textContent || "").toLowerCase();
+
+    const isCheckoutLink = href && isCheckoutUrl(href);
+    const isStrongCta = /quero|garantir|comprar/.test(text) && /ebook|planejar|planejamento|viagem/.test(text);
+
+    if (isCheckoutLink || isStrongCta) {
+      trackInitiateCheckout();
+    }
+  }, true);
+})();
+</script>
   </body>
 </html>
