@@ -571,6 +571,7 @@ let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
 let expensesListExpanded = false;
 let travelExpensesLoaded = false;
+let travelExpensesPersistQueue = Promise.resolve(true);
 let pendingExpenseTripHash = "";
 let currentUserCache = null;
 let cloudDataCache = null;
@@ -1774,12 +1775,22 @@ async function refreshTravelExpenses() {
   }
 }
 
-async function saveTravelExpenseTrips() {
-  const synced = await writeTravelExpenses(travelExpenseTrips);
+function saveTravelExpenseTrips() {
+  // Atualiza a UI imediatamente e sincroniza em segundo plano.
   renderTravelExpenses();
-  if (!synced && warnEl) {
-    warnEl.textContent = "Dados salvos neste dispositivo. A sincronização com a nuvem será tentada novamente automaticamente.";
-  }
+
+  const snapshot = normalizeArrayData(travelExpenseTrips);
+  travelExpensesPersistQueue = travelExpensesPersistQueue
+    .catch(() => true)
+    .then(async () => {
+      const synced = await writeTravelExpenses(snapshot);
+      if (!synced && warnEl) {
+        warnEl.textContent = "Dados salvos neste dispositivo. A sincronização com a nuvem será tentada novamente automaticamente.";
+      }
+      return synced;
+    });
+
+  return travelExpensesPersistQueue;
 }
 
 function renderSavedRoutes(routes = []) {
@@ -4239,7 +4250,7 @@ tripFormEl?.addEventListener("submit", async (event) => {
   };
   travelExpenseTrips.unshift(trip);
   selectedExpenseTripId = trip.id;
-  await saveTravelExpenseTrips();
+  saveTravelExpenseTrips();
   tripFormEl.reset();
 });
 
@@ -4269,7 +4280,7 @@ expenseFormEl?.addEventListener("submit", async (event) => {
   };
   trip.expenses = [expense, ...(trip.expenses || [])];
   selectedExpenseTripId = trip.id;
-  await saveTravelExpenseTrips();
+  saveTravelExpenseTrips();
   expenseFormEl.reset();
   if (expenseCurrencyEl) expenseCurrencyEl.value = "BRL";
   if (expenseRateEl) expenseRateEl.value = "1";
@@ -4292,7 +4303,7 @@ tripsListEl?.addEventListener("click", async (event) => {
     if (!confirmDelete) return;
     travelExpenseTrips = travelExpenseTrips.filter((trip) => trip.id !== tripId);
     if (selectedExpenseTripId === tripId) selectedExpenseTripId = null;
-    await saveTravelExpenseTrips();
+    saveTravelExpenseTrips();
   }
 });
 
@@ -4311,7 +4322,7 @@ expensesListEl?.addEventListener("click", async (event) => {
   const trip = travelExpenseTrips.find((entry) => entry.id === item.dataset.tripId);
   if (!trip) return;
   trip.expenses = (trip.expenses || []).filter((expense) => expense.id !== item.dataset.expenseId);
-  await saveTravelExpenseTrips();
+  saveTravelExpenseTrips();
 });
 
 clearExpenseSelectionBtn?.addEventListener("click", () => {
