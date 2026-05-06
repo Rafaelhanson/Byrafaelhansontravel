@@ -44,7 +44,13 @@ src="https://www.facebook.com/tr?id=1291905278984754&ev=PageView&noscript=1"
     <div id="root"></div>
     <script>
 (function setupCheckoutTracking() {
+  let lastLeadAt = 0;
+
   function trackLead() {
+    const now = Date.now();
+    if (now - lastLeadAt < 1200) return;
+    lastLeadAt = now;
+
     if (typeof window.fbq === "function") {
       window.fbq("track", "Lead", { source: "ebook_landing" });
     }
@@ -85,4 +91,5 @@ src="https://www.facebook.com/tr?id=1291905278984754&ev=PageView&noscript=1"
 </script>
   </body>
 </html>
+
 
