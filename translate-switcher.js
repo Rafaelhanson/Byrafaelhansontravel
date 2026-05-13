@@ -80,6 +80,15 @@
     document.body.style.marginTop = "0px";
     document.body.style.top = "0px";
     document.body.style.position = "static";
+
+    // Remove hover highlight injected by Google Translate on translated text.
+    var highlights = document.querySelectorAll(".goog-text-highlight");
+    highlights.forEach(function (node) {
+      node.style.background = "transparent";
+      node.style.backgroundColor = "transparent";
+      node.style.boxShadow = "none";
+      node.style.border = "none";
+    });
   }
 
   function applyLang(lang) {
@@ -130,7 +139,8 @@
       "iframe.skiptranslate{display:none!important;visibility:hidden!important;height:0!important}",
       "#goog-gt-tt,.goog-te-balloon-frame{display:none!important}",
       ".goog-tooltip,.goog-tooltip:hover{display:none!important}",
-      ".goog-text-highlight{background:none!important;box-shadow:none!important}",
+      ".goog-text-highlight,.goog-text-highlight *{background:none!important;background-color:transparent!important;box-shadow:none!important;border:none!important}",
+      "font.goog-text-highlight{background:none!important;background-color:transparent!important;box-shadow:none!important;border:none!important}",
       "html,body{margin-top:0!important;top:0!important}",
       "body{top:0!important}"
     ].join("");

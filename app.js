@@ -475,9 +475,12 @@ const dayLimitModeEl = document.getElementById("dayLimitMode");
 const dayLimitValueEl = document.getElementById("dayLimitValue");
 const dayLimitLabelEl = document.getElementById("dayLimitLabel");
 const dayLimitHelpEl = document.getElementById("dayLimitHelp");
+const fuelCostInputEl = document.getElementById("fuelCostInput");
+const vehicleAvgInputEl = document.getElementById("vehicleAvgInput");
 const sumKmEl = document.getElementById("sumKm");
 const sumTimeEl = document.getElementById("sumTime");
 const sumDaysEl = document.getElementById("sumDays");
+const sumFuelCostEl = document.getElementById("sumFuelCost");
 const daysOutEl = document.getElementById("daysOut");
 const mapSectionEl = document.getElementById("mapa");
 const destinosSectionEl = document.getElementById("destinos");
@@ -709,6 +712,47 @@ function safeRemoveStorage(key) {
   volatileStorageFallback.delete(key);
 }
 
+function safeListStorageKeys() {
+  const keys = new Set();
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key) keys.add(key);
+    }
+  } catch (_error) {}
+  try {
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key) keys.add(key);
+    }
+  } catch (_error) {}
+  for (const key of volatileStorageFallback.keys()) keys.add(key);
+  return [...keys];
+}
+
+function readRoutesFromStorageKey(key) {
+  try {
+    const raw = safeGetStorage(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function readAllLocalRouteCandidates(currentKey) {
+  const routeKeys = safeListStorageKeys()
+    .filter((key) => key === "myRoutes" || key === "myRoutes:lastKnown" || key.startsWith("myRoutes:"));
+
+  if (!routeKeys.includes(currentKey)) routeKeys.unshift(currentKey);
+  const allRoutes = routeKeys
+    .map((key) => readRoutesFromStorageKey(key))
+    .filter((list) => Array.isArray(list) && list.length)
+    .flat();
+  return normalizeArrayData(allRoutes);
+}
+
 async function getSupabaseSession() {
   const sb = initSupabaseClient();
   if (!sb || !sb.auth || typeof sb.auth.getSession !== "function") return null;
@@ -829,7 +873,7 @@ function mergeByIdKeepNewest(primary = [], secondary = []) {
   return [...byId.values()].sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
 }
 
-async function readCloudUserData() {
+async function readCloudUserData(timeoutMs = 2500) {
   const sb = initSupabaseClient();
   const userId = await getCurrentUserId();
   if (!sb || !userId) return null;
@@ -838,11 +882,13 @@ async function readCloudUserData() {
 
   try {
     const table = getUserDataTableName();
-    const { data, error } = await sb
+    const response = await withTimeout(() => sb
       .from(table)
       .select("user_id, routes, trips, updated_at")
       .eq("user_id", userId)
-      .maybeSingle();
+      .maybeSingle(), timeoutMs);
+    if (!response) return null;
+    const { data, error } = response;
 
     if (error) return null;
 
@@ -1090,6 +1136,7 @@ function handleSectionVisibilityByHash(hash) {
     setSectionVisibility("collab-detail");
     openCollabDetailById(collabId);
     updateActiveNav("#my-collabs");
+    drawPoiMarkers();
     return;
   }
   if (normalized === "#route") {
@@ -1102,6 +1149,7 @@ function handleSectionVisibilityByHash(hash) {
       enterRouteFocusMode();
       updateRouteFocusHeader(currentPlanSnapshot);
     }
+    drawPoiMarkers();
     requestAnimationFrame(() => {
       map.invalidateSize();
       if (routeLayer) map.fitBounds(routeLayer.getBounds(), { padding: [24, 24] });
@@ -1151,10 +1199,14 @@ function handleSectionVisibilityByHash(hash) {
 
   if (sectionId === "mapa") {
     hidePlannerRouteLayersFromMap();
+    drawPoiMarkers();
     requestAnimationFrame(() => {
       map.invalidateSize();
     });
+    return;
   }
+
+  drawPoiMarkers();
 }
 
 function hidePlannerRouteLayersFromMap() {
@@ -1240,15 +1292,35 @@ function clearPlannerData() {
   dayLimitModeEl.value = "hours";
   updateDayLimitUi();
   dayLimitValueEl.value = "";
+  if (fuelCostInputEl) fuelCostInputEl.value = "";
+  if (vehicleAvgInputEl) vehicleAvgInputEl.value = "";
 
   sumKmEl.textContent = "-";
   sumTimeEl.textContent = "-";
   sumDaysEl.textContent = "-";
+  if (sumFuelCostEl) sumFuelCostEl.textContent = "-";
   daysOutEl.innerHTML = "";
   warnEl.textContent = "";
   safeRemoveStorage("lastPlan");
   if (planActionsEl) planActionsEl.style.display = "none";
   if (mapSectionEl) mapSectionEl.hidden = true;
+}
+
+function parsePositiveNumber(value) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function formatMoneyValue(value) {
+  const amount = Number(value || 0);
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+  return `$ ${formatted}`;
 }
 
 function updateRouteFocusHeader(route) {
@@ -1300,19 +1372,20 @@ async function getRoutesStorageKey() {
   return routesStorageKeyCache;
 }
 
-async function readSavedRoutes() {
+async function readSavedRoutes(options = {}) {
+  const cloudTimeoutMs = Number.isFinite(options.cloudTimeoutMs) ? options.cloudTimeoutMs : 2500;
   const key = await getRoutesStorageKey();
-  let localRoutes = [];
-  try {
-    const raw = safeGetStorage(key);
-    if (!raw) localRoutes = [];
-    const parsed = JSON.parse(raw);
-    localRoutes = Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    localRoutes = [];
+  let localRoutes = readRoutesFromStorageKey(key);
+  if (!localRoutes.length) {
+    localRoutes = readAllLocalRouteCandidates(key);
+  }
+  localRoutes = normalizeArrayData(localRoutes);
+  if (localRoutes.length) {
+    safeSetStorage(key, JSON.stringify(localRoutes));
+    safeSetStorage("myRoutes:lastKnown", JSON.stringify(localRoutes));
   }
 
-  const cloudData = await readCloudUserData();
+  const cloudData = await readCloudUserData(cloudTimeoutMs);
   if (!cloudData) return localRoutes;
 
   const cloudRoutes = normalizeArrayData(cloudData.routes);
@@ -1324,6 +1397,7 @@ async function readSavedRoutes() {
   if (!arraysEqualByJson(localRoutes, merged)) {
     safeSetStorage(key, JSON.stringify(merged));
   }
+  safeSetStorage("myRoutes:lastKnown", JSON.stringify(merged));
 
   return merged;
 }
@@ -1332,6 +1406,7 @@ async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
   const safeRoutes = normalizeArrayData(routes);
   safeSetStorage(key, JSON.stringify(safeRoutes));
+  safeSetStorage("myRoutes:lastKnown", JSON.stringify(safeRoutes));
   const synced = await writeCloudUserDataField("routes", safeRoutes);
   if (!synced) await queuePendingCloudField("routes", safeRoutes);
   return synced;
@@ -1819,9 +1894,17 @@ function renderSavedRoutes(routes = []) {
 }
 
 async function refreshSavedRoutes() {
-  const routes = await readSavedRoutes();
+  const localRoutes = normalizeArrayData(readAllLocalRouteCandidates("myRoutes:lastKnown"))
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  renderSavedRoutesV2(localRoutes);
+
+  const routes = await readSavedRoutes({
+    cloudTimeoutMs: localRoutes.length ? 1200 : 6000
+  });
   routes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  renderSavedRoutesV2(routes);
+  if (!arraysEqualByJson(localRoutes, routes)) {
+    renderSavedRoutesV2(routes);
+  }
 }
 
 function renderSavedRoutesV2(routes = []) {
@@ -2224,6 +2307,8 @@ async function applySavedRoute(route) {
   if (dayLimitModeEl && route.dayLimitMode) dayLimitModeEl.value = route.dayLimitMode;
   updateDayLimitUi();
   if (dayLimitValueEl && route.dayLimitValue) dayLimitValueEl.value = route.dayLimitValue;
+  if (fuelCostInputEl) fuelCostInputEl.value = route.fuelCostPerLiter ? String(route.fuelCostPerLiter) : "";
+  if (vehicleAvgInputEl) vehicleAvgInputEl.value = route.vehicleAvgKmPerLiter ? String(route.vehicleAvgKmPerLiter) : "";
 
   if (applySavedSnapshotToUi(route)) {
     warnEl.textContent = "Rota carregada em Minhas rotas.";
@@ -2263,6 +2348,13 @@ function applySavedSnapshotToUi(route) {
   sumKmEl.textContent = `${Math.round(route.totalKm || 0)} km`;
   sumTimeEl.textContent = `${Number(route.totalHours || 0).toFixed(1)} h`;
   sumDaysEl.textContent = String(route.totalDays || route.days.length || 0);
+  if (sumFuelCostEl) {
+    if (Number.isFinite(route.estimatedFuelCost) && route.estimatedFuelCost > 0) {
+      sumFuelCostEl.textContent = formatMoneyValue(route.estimatedFuelCost);
+    } else {
+      sumFuelCostEl.textContent = "-";
+    }
+  }
   if (daysInputEl) daysInputEl.value = String(route.totalDays || route.days.length || "");
   daysOutEl.innerHTML = renderDaysHtmlEnhanced(route.days, route.style || styleEl?.value || "fast", route.dayLimitMode || dayLimitModeEl?.value || "km");
 
@@ -3152,9 +3244,15 @@ function computePoiDistanceToRoute(poi) {
   return min;
 }
 
+function shouldShowRoutePoisOnMap() {
+  const hash = (window.location.hash || "").toLowerCase();
+  return hash !== "#mapa" && !hash.startsWith("#collab/");
+}
+
 function drawPoiMarkers() {
   if (poisLayer) map.removeLayer(poisLayer);
   poisLayer = L.layerGroup();
+  if (!shouldShowRoutePoisOnMap()) return;
   const allPois = [...dynamicRoutePois];
   const visible = allPois.filter((poi) => selectedCats.has(poi.category)).filter((poi) => computePoiDistanceToRoute(poi) <= maxPoiDistance);
   visible.forEach((poi) => {
@@ -3697,6 +3795,21 @@ async function generatePlan() {
     const totalHours = cumulativeHours[cumulativeHours.length - 1] || fullDuration / 3600;
     sumKmEl.textContent = `${Math.round(totalKm)} km`;
     sumTimeEl.textContent = `${totalHours.toFixed(1)} h`;
+    const fuelCostPerLiter = parsePositiveNumber(fuelCostInputEl?.value);
+    const vehicleAvgKmPerLiter = parsePositiveNumber(vehicleAvgInputEl?.value);
+    const hasFuelCost = fuelCostPerLiter !== null;
+    const hasVehicleAvg = vehicleAvgKmPerLiter !== null;
+    if (hasFuelCost !== hasVehicleAvg) {
+      warnEl.textContent = "Para calcular o custo estimado de combustível, preencha os dois campos: custo por litro e média do veículo (km/l).";
+      if (sumFuelCostEl) sumFuelCostEl.textContent = "-";
+      return;
+    }
+    const estimatedFuelCost = hasFuelCost && hasVehicleAvg
+      ? (totalKm / vehicleAvgKmPerLiter) * fuelCostPerLiter
+      : null;
+    if (sumFuelCostEl) {
+      sumFuelCostEl.textContent = estimatedFuelCost !== null ? formatMoneyValue(estimatedFuelCost) : "-";
+    }
 
     const requestedDays = Number(daysInputEl?.value);
     const hasRequestedDays = daysInputTouchedByUser && Number.isFinite(requestedDays) && requestedDays > 0;
@@ -3833,6 +3946,9 @@ async function generatePlan() {
       daysRequested: hasRequestedDays ? requestedDays : null,
       totalKm: Math.round(totalKm),
       totalHours: Number(totalHours.toFixed(1)),
+      fuelCostPerLiter,
+      vehicleAvgKmPerLiter,
+      estimatedFuelCost: estimatedFuelCost !== null ? Number(estimatedFuelCost.toFixed(2)) : null,
       totalDays: days.length,
       days,
       waypoints: waypoints.map((point) => ({ name: point.name, lat: point.lat, lon: point.lon })),
