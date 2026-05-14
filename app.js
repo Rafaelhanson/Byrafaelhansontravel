@@ -2351,11 +2351,28 @@ function updateDayLimitUi() {
 async function searchCities(query) {
   const q = query.trim();
   if (q.length < 2) return [];
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&limit=7&addressdetails=1`;
-  const response = await fetch(url, { headers: { "Accept-Language": "pt-BR" } });
-  if (!response.ok) return [];
-  const data = await response.json();
-  return data;
+  const base = "https://nominatim.openstreetmap.org/search";
+  const cityUrl = `${base}?format=jsonv2&q=${encodeURIComponent(q)}&limit=8&addressdetails=1&featuretype=city`;
+  const generalUrl = `${base}?format=jsonv2&q=${encodeURIComponent(q)}&limit=8&addressdetails=1`;
+  const headers = { "Accept-Language": "pt-BR" };
+  const [cityResp, generalResp] = await Promise.all([
+    fetch(cityUrl, { headers }),
+    fetch(generalUrl, { headers })
+  ]);
+  const cityData = cityResp.ok ? await cityResp.json() : [];
+  const generalData = generalResp.ok ? await generalResp.json() : [];
+  const merged = mergeRecentSearches([...(cityData || []), ...(generalData || [])]);
+  return merged.sort((a, b) => rankAutocompleteEntry(b) - rankAutocompleteEntry(a)).slice(0, 8);
+}
+
+function rankAutocompleteEntry(entry) {
+  const kind = String(entry?.kind || entry?.addresstype || entry?.type || "").toLowerCase();
+  const importance = Number(entry?.importance) || 0;
+  if (["city", "town", "municipality", "village"].includes(kind)) return 100 + importance;
+  if (["county", "suburb", "hamlet", "district"].includes(kind)) return 70 + importance;
+  if (["state", "region", "province"].includes(kind)) return 35 + importance;
+  if (["country"].includes(kind)) return 10 + importance;
+  return 50 + importance;
 }
 
 function normalizeAutocompleteEntry(entry) {
@@ -2385,6 +2402,7 @@ function normalizeAutocompleteEntry(entry) {
   const placeType = entry.type || "";
   const kind = entry.addresstype || placeType || "";
   const contextParts = [stateOrRegion, country].filter(Boolean);
+  const importance = Number(entry.importance) || 0;
   return {
     name,
     lat: String(lat),
@@ -2399,6 +2417,7 @@ function normalizeAutocompleteEntry(entry) {
     },
     type: placeType,
     kind,
+    importance,
     display_name: entry.display_name || `${name}${contextParts.length ? `, ${contextParts.join(", ")}` : ""}`
   };
 }
