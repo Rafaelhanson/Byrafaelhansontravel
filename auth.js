@@ -19,7 +19,12 @@
   function buildAdminApprovalLink(email) {
     const normalized = normalizeEmail(email);
     if (!normalized) return "";
-    let base = config.signupApprovalUrl || "./index.html#expenses";
+    const defaultBase = `${window.location.origin}${window.location.pathname.replace(/\/[^/]*$/, "/")}index.html#my-account`;
+    let base = config.signupApprovalUrl || defaultBase;
+    // Evita gerar e-mail com localhost quando o cadastro foi feito no app publicado.
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)/i.test(base) && window.location.protocol !== "file:") {
+      base = defaultBase;
+    }
     if (window.location.protocol === "file:" && (!base || base.startsWith("./") || base.startsWith("file://"))) {
       base = "http://127.0.0.1:5500/index.html#my-account";
     }

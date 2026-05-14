@@ -23,7 +23,8 @@ window.APP_AUTH_CONFIG = {
   // URL base para abrir a tela de aprovação no celular/computador.
   // O sistema adiciona automaticamente ?approve_email=<email>.
   // Exemplo: "https://seu-dominio.com/index.html#my-account"
-  signupApprovalUrl: "http://127.0.0.1:5500/index.html#my-account",
+  // Dica: deixe vazio para usar automaticamente a URL do ambiente atual.
+  signupApprovalUrl: "",
   // URL opcional para abrir direto uma busca no Hotmart por e-mail.
   // O sistema adiciona automaticamente ?email=<email>.
   hotmartCheckUrl: "https://app-vlc.hotmart.com/sales",
