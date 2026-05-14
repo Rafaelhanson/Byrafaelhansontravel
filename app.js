@@ -2360,11 +2360,33 @@ async function searchCities(query) {
 
 function normalizeAutocompleteEntry(entry) {
   if (!entry) return null;
-  const name = (entry.name || entry.label || entry.display_name?.split(",")?.[0] || "").trim();
+  const address = entry.address || {};
+  const name = (
+    entry.name ||
+    entry.label ||
+    address.city ||
+    address.town ||
+    address.municipality ||
+    address.village ||
+    address.state ||
+    entry.display_name?.split(",")?.[0] ||
+    ""
+  ).trim();
   const lat = Number(entry.lat);
   const lon = Number(entry.lon ?? entry.lng);
   if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const stateOrRegion =
+    address.state ||
+    address.region ||
+    address.state_district ||
+    address.county ||
+    "";
+  const country = entry.country || address.country || "";
+  const placeType = entry.type || "";
+  const kind = entry.addresstype || placeType || "";
+  const contextParts = [stateOrRegion, country].filter(Boolean);
   return {
+    name,
     lat: String(lat),
     lon: String(lon),
     address: {
@@ -2372,9 +2394,12 @@ function normalizeAutocompleteEntry(entry) {
       town: name,
       municipality: name,
       village: name,
-      country: entry.country || ""
+      state: stateOrRegion,
+      country
     },
-    display_name: `${name}${entry.country ? `, ${entry.country}` : ""}`
+    type: placeType,
+    kind,
+    display_name: entry.display_name || `${name}${contextParts.length ? `, ${contextParts.join(", ")}` : ""}`
   };
 }
 
@@ -2397,7 +2422,14 @@ function mergeRecentSearches(items = []) {
   for (const item of items) {
     const normalized = normalizeAutocompleteEntry(item);
     if (!normalized) continue;
-    const key = `${normalized.address.city}::${normalized.lat}::${normalized.lon}`;
+    const key = [
+      normalized.name || normalized.address.city || "",
+      normalized.address?.state || "",
+      normalized.address?.country || "",
+      normalized.kind || normalized.type || "",
+      normalized.lat,
+      normalized.lon
+    ].join("::");
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(normalized);
@@ -2443,9 +2475,13 @@ function renderAutocomplete(listEl, items, onPick) {
   }
   listEl.innerHTML = items
     .map((item) => {
-      const city = item.address?.city || item.address?.town || item.address?.municipality || item.display_name.split(",")[0];
+      const city = item.name || item.address?.city || item.address?.town || item.address?.municipality || item.display_name.split(",")[0];
+      const state = item.address?.state || item.address?.region || item.address?.county || "";
       const country = item.address?.country || "";
-      return `<div class="item" data-lat="${item.lat}" data-lon="${item.lon}" data-label="${city}"><span>${city}</span><small>${country}</small></div>`;
+      const kind = item.kind || item.type || "";
+      const secondary = [state, country].filter(Boolean).join(", ");
+      const detail = [secondary, kind].filter(Boolean).join(" • ");
+      return `<div class="item" data-lat="${item.lat}" data-lon="${item.lon}" data-label="${city}" data-country="${country}" data-state="${state}" data-kind="${kind}"><span>${city}</span><small>${detail || country}</small></div>`;
     })
     .join("");
   listEl.hidden = false;
@@ -2456,7 +2492,9 @@ function renderAutocomplete(listEl, items, onPick) {
       name: row.dataset.label,
       lat: Number(row.dataset.lat),
       lon: Number(row.dataset.lon),
-      country: row.dataset.country || ""
+      country: row.dataset.country || "",
+      state: row.dataset.state || "",
+      kind: row.dataset.kind || ""
     };
     onPick(picked);
     listEl.hidden = true;
