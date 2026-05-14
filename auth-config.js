@@ -19,7 +19,14 @@ window.APP_AUTH_CONFIG = {
   failClosedApproval: true,
   // Opcional: webhook para notificar novo cadastro (Telegram, Make, Zapier, etc).
   // Exemplo: "https://hooks.zapier.com/hooks/catch/xxxx/yyyy"
-  signupWebhookUrl: "",
+  signupWebhookUrl: "https://dxdmqarllnljhhddyxsz.supabase.co/functions/v1/quick-endpoint",
+  // URL base para abrir a tela de aprovação no celular/computador.
+  // O sistema adiciona automaticamente ?approve_email=<email>.
+  // Exemplo: "https://seu-dominio.com/index.html#my-account"
+  signupApprovalUrl: "http://127.0.0.1:5500/index.html#my-account",
+  // URL opcional para abrir direto uma busca no Hotmart por e-mail.
+  // O sistema adiciona automaticamente ?email=<email>.
+  hotmartCheckUrl: "https://app-vlc.hotmart.com/sales",
   // Opcional: tabela para registrar eventos de cadastro no Supabase.
   signupLogTable: "signup_notifications",
   // Sincroniza rotas e gastos entre navegador local e app publicado no Vercel.

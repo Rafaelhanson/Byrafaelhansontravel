@@ -1076,6 +1076,16 @@
               <label>Viagem ativa</label>
               <input id="expenseActiveTripName" value="Nenhuma viagem selecionada" readonly>
             </div>
+            <div class="field">
+              <label>Região da viagem</label>
+              <select id="expenseRegion">
+                <option value="brazil">Brasil (BRL)</option>
+                <option value="argentina">Argentina (ARS)</option>
+                <option value="chile">Chile (CLP)</option>
+                <option value="usa">Estados Unidos (USD)</option>
+                <option value="europe">Europa (EUR)</option>
+              </select>
+            </div>
             <div class="expense-two">
               <div class="field">
                 <label>Categoria</label>
@@ -1109,12 +1119,12 @@
                   <option value="BRL">BRL</option>
                   <option value="ARS">ARS</option>
                   <option value="CLP">CLP</option>
+                  <option value="EUR">EUR</option>
                   <option value="USD">USD</option>
-                  <option value="UYU">UYU</option>
                 </select>
               </div>
               <div class="field">
-                <label>Cotação p/ BRL</label>
+                <label id="expenseRateLabel">Cotação p/ BRL</label>
                 <input id="expenseRate" type="number" min="0" step="0.0001" value="1">
               </div>
             </div>
@@ -1138,7 +1148,7 @@
           <span class="badge">resumo</span>
           <h3 id="expenseSelectedTripTitle">Nenhuma viagem selecionada</h3>
           <div class="expense-total" id="expenseTotalBrl">R$ 0,00</div>
-          <p class="tiny">Total aproximado convertido para real com a cotação informada em cada gasto.</p>
+          <p class="tiny" id="expenseTotalNote">Total aproximado convertido para a moeda da região com a cotação informada em cada gasto.</p>
           <div id="expensePie" class="expense-pie" aria-label="Gráfico de gastos por categoria"></div>
           <div id="expenseLegend" class="expense-legend"></div>
         </article>
@@ -1160,10 +1170,17 @@
               <option value="category">Gastos por categoria</option>
             </select>
           </div>
-          <button id="expenseReportGenerateBtn" class="btn" type="button" style="border:1px solid #3a6256;background:#102521;color:#e5f5ee">Gerar relatório</button>
+          <div class="field" style="margin:0;min-width:200px">
+            <label for="expenseReportLanguage">Idioma do relatório</label>
+            <select id="expenseReportLanguage">
+              <option value="pt">Português</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
           <button id="expenseReportPrintBtn" class="btn btn-p" type="button">Imprimir relatório</button>
         </div>
-        <div id="expenseReportOutput" class="expense-report-empty tiny">Selecione uma viagem e clique em "Gerar relatório".</div>
+        <div id="expenseReportOutput" class="expense-report-empty tiny">Selecione uma viagem para visualizar o relatório.</div>
       </article>
     </section>
 
@@ -1288,7 +1305,7 @@
     </div>
 
     <section id="destinos" class="card">
-      <div class="head"><span class="badge">destinos</span><h2>Locais da viagem</h2></div>
+      <div class="head"><span class="badge">destinos</span><h2>Principais pontos turísticos da Patagônia</h2></div>
       <div id="placesGrid" class="grid"></div>
     </section>
 
@@ -1306,8 +1323,34 @@
   <script src="./auth-config.js"></script>
   <script src="./auth.js"></script>
   <script>
-    window.AppAuth.requireAuth().then((isAuthorized) => {
+    async function handleAdminApprovalLink() {
+      const params = new URLSearchParams(window.location.search);
+      const emailToApprove = String(params.get("approve_email") || "").trim().toLowerCase();
+      if (!emailToApprove) return;
+      if (!window.AppAuth || typeof window.AppAuth.approveUserEmail !== "function") return;
+
+      try {
+        const isAdmin = await window.AppAuth.isCurrentUserAdmin();
+        if (!isAdmin) {
+          alert("Aprovação disponível apenas para administradores.");
+          return;
+        }
+        const ok = confirm(`Aprovar este usuário?\n\n${emailToApprove}`);
+        if (!ok) return;
+        await window.AppAuth.approveUserEmail(emailToApprove);
+        alert(`Usuário aprovado com sucesso:\n${emailToApprove}`);
+        params.delete("approve_email");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      } catch (error) {
+        alert(error?.message || "Não foi possível aprovar este usuário.");
+      }
+    }
+
+    window.AppAuth.requireAuth().then(async (isAuthorized) => {
       if (!isAuthorized) return;
+      await handleAdminApprovalLink();
       if (window.AppAuth && typeof window.AppAuth.bindLogoutButton === "function") {
         window.AppAuth.bindLogoutButton("logoutBtn");
         window.AppAuth.bindLogoutButton("mobileLogoutBtn");

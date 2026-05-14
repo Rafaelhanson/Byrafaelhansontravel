@@ -16,6 +16,36 @@
     return String(email || "").trim().toLowerCase();
   }
 
+  function buildAdminApprovalLink(email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return "";
+    let base = config.signupApprovalUrl || "./index.html#expenses";
+    if (window.location.protocol === "file:" && (!base || base.startsWith("./") || base.startsWith("file://"))) {
+      base = "http://127.0.0.1:5500/index.html#my-account";
+    }
+    try {
+      const url = new URL(base, window.location.href);
+      url.searchParams.set("approve_email", normalized);
+      return url.toString();
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function buildHotmartCheckLink(email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return "";
+    const base = config.hotmartCheckUrl || "";
+    if (!base) return "";
+    try {
+      const url = new URL(base, window.location.href);
+      url.searchParams.set("email", normalized);
+      return url.toString();
+    } catch (_error) {
+      return "";
+    }
+  }
+
   function withNext(path) {
     const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const target = new URL(path, window.location.href);
@@ -89,12 +119,56 @@
     }
   }
 
+  async function isAdminUser(email) {
+    if (!client) return false;
+    const adminsTable = config.adminUsersTable || "app_admins";
+    const normalized = normalizeEmail(email);
+    if (!normalized) return false;
+    try {
+      const { data, error } = await client
+        .from(adminsTable)
+        .select("email, active")
+        .eq("email", normalized)
+        .maybeSingle();
+      if (error || !data) return false;
+      return data.active !== false;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  async function isCurrentUserAdmin() {
+    const session = await getSession();
+    const email = normalizeEmail(session?.user?.email || "");
+    if (!email) return false;
+    return isAdminUser(email);
+  }
+
+  async function approveUserEmail(email) {
+    if (!client) throw new Error("Supabase não configurado.");
+    const normalized = normalizeEmail(email);
+    if (!normalized) throw new Error("E-mail inválido para aprovação.");
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) throw new Error("Somente administradores podem aprovar usuários.");
+
+    const { error } = await client
+      .from(approvedUsersTable)
+      .upsert({ email: normalized, active: true }, { onConflict: "email" });
+    if (error) throw error;
+    return true;
+  }
+
   async function notifyNewSignup(email, userId) {
+    const normalizedEmail = normalizeEmail(email);
+    const approvalLink = buildAdminApprovalLink(normalizedEmail);
+    const hotmartCheckLink = buildHotmartCheckLink(normalizedEmail);
     const payload = {
-      email: normalizeEmail(email),
+      email: normalizedEmail,
       user_id: userId || null,
       created_at: new Date().toISOString(),
-      source: "web"
+      source: "web",
+      approval_link: approvalLink || null,
+      hotmart_check_link: hotmartCheckLink || null
     };
 
     if (client && signupLogTable) {
@@ -222,7 +296,9 @@
     bindLogoutButton,
     bindUserEmailChip,
     redirectAfterLogin,
-    isUserApproved
+    isUserApproved,
+    isCurrentUserAdmin,
+    approveUserEmail
   };
 })(window);
 
