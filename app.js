@@ -2881,7 +2881,10 @@ function stripRoadFromStopLabel(value) {
   const text = normalizeRouteText(value || "");
   if (!text) return "";
   return text
-    .replace(/\s*-\s*(I|US|BR|RN|SP|RS|SC|PR|MG|GO|BA|CE|PE|RJ|ES|MT|MS|DF)\s*[-\dA-Z ]+$/i, "")
+    .replace(/[◆�]/g, " ")
+    .replace(/\b(I|US|BR|RN|SP|RS|SC|PR|MG|GO|BA|CE|PE|RJ|ES|MT|MS|DF)\s*[- ]?\s*\d+[A-Z0-9-]*/gi, " ")
+    .replace(/\s*-\s*-\s*/g, " - ")
+    .replace(/\s*-\s*(?=-|$)/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
