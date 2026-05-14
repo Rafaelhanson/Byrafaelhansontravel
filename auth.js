@@ -73,6 +73,15 @@
     }
   }
 
+  function hasApproveEmailParam() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return Boolean(String(params.get("approve_email") || "").trim());
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function redirectAfterLogin() {
     const params = new URLSearchParams(window.location.search);
     const safeNext = sanitizeNextPath(params.get("next"));
@@ -149,6 +158,64 @@
     return isAdminUser(email);
   }
 
+  async function notifyUserApproved(email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) return;
+    const approvalWebhookUrl = config.approvalWebhookUrl || config.signupWebhookUrl || "";
+    if (!approvalWebhookUrl) return;
+
+    const session = await getSession();
+    const approvedBy = normalizeEmail(session?.user?.email || "");
+    const payload = {
+      event: "user_approved",
+      email: normalizedEmail,
+      approved_by: approvedBy || null,
+      approved_at: new Date().toISOString(),
+      source: "web"
+    };
+
+    try {
+      await fetch(approvalWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+    } catch (_err) {
+      // Não interrompe a aprovação se o webhook falhar.
+    }
+  }
+
+  async function approveUserByToken(email, token) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedToken = String(token || "").trim();
+    if (!normalizedEmail) throw new Error("E-mail inválido para aprovação.");
+    if (!normalizedToken) throw new Error("Token de aprovação ausente.");
+
+    const approvalWebhookUrl = config.approvalWebhookUrl || config.signupWebhookUrl || "";
+    if (!approvalWebhookUrl) throw new Error("Webhook de aprovação não configurado.");
+
+    const response = await fetch(approvalWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "approve_user_token",
+        email: normalizedEmail,
+        token: normalizedToken,
+        source: "web"
+      })
+    });
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_error) {}
+
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.error || "Não foi possível aprovar este usuário por link.");
+    }
+    return true;
+  }
+
   async function approveUserEmail(email) {
     if (!client) throw new Error("Supabase não configurado.");
     const normalized = normalizeEmail(email);
@@ -160,6 +227,7 @@
       .from(approvedUsersTable)
       .upsert({ email: normalized, active: true }, { onConflict: "email" });
     if (error) throw error;
+    await notifyUserApproved(normalized);
     return true;
   }
 
@@ -213,6 +281,19 @@
     if (!session) {
       redirectToLogin();
       return false;
+    }
+    const approvalFlow = hasApproveEmailParam();
+    if (approvalFlow) {
+      const adminViaWhitelist = isEmailInWhitelist(session.user?.email || "");
+      const adminViaTable = await isAdminUser(session.user?.email || "");
+      const isAdminForApproval = adminViaWhitelist || adminViaTable;
+      if (!isAdminForApproval) {
+        if (client) await client.auth.signOut();
+        alert("Para aprovar usuários, entre com a conta de administrador.");
+        window.location.href = withNext(loginPath);
+        return false;
+      }
+      return true;
     }
     const approved = await isUserApproved(session.user?.email || "");
     if (!approved) {
@@ -303,7 +384,8 @@
     redirectAfterLogin,
     isUserApproved,
     isCurrentUserAdmin,
-    approveUserEmail
+    approveUserEmail,
+    approveUserByToken
   };
 })(window);
 
