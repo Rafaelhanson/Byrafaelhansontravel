@@ -1323,6 +1323,42 @@
   <script src="./auth-config.js"></script>
   <script src="./auth.js"></script>
   <script>
+    function showApprovalMessage(message, type = "info") {
+      const existing = document.getElementById("approvalStatusBanner");
+      if (existing) existing.remove();
+
+      const banner = document.createElement("div");
+      banner.id = "approvalStatusBanner";
+      banner.setAttribute("role", "status");
+      banner.style.position = "fixed";
+      banner.style.right = "16px";
+      banner.style.bottom = "16px";
+      banner.style.maxWidth = "440px";
+      banner.style.zIndex = "99999";
+      banner.style.padding = "12px 14px";
+      banner.style.borderRadius = "12px";
+      banner.style.border = "1px solid rgba(255,255,255,.2)";
+      banner.style.boxShadow = "0 10px 24px rgba(0,0,0,.35)";
+      banner.style.backdropFilter = "blur(6px)";
+      banner.style.fontWeight = "700";
+      banner.style.lineHeight = "1.35";
+
+      if (type === "success") {
+        banner.style.background = "rgba(7, 82, 47, .92)";
+        banner.style.color = "#d1fae5";
+      } else if (type === "error") {
+        banner.style.background = "rgba(127, 29, 29, .92)";
+        banner.style.color = "#fee2e2";
+      } else {
+        banner.style.background = "rgba(30, 41, 59, .92)";
+        banner.style.color = "#e2e8f0";
+      }
+
+      banner.textContent = message;
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 6500);
+    }
+
     async function handleAdminApprovalLink() {
       const params = new URLSearchParams(window.location.search);
       const emailToApprove = String(params.get("approve_email") || "").trim().toLowerCase();
@@ -1332,19 +1368,22 @@
       try {
         const isAdmin = await window.AppAuth.isCurrentUserAdmin();
         if (!isAdmin) {
-          alert("Aprovação disponível apenas para administradores.");
+          showApprovalMessage("Aprovação disponível apenas para administradores.", "error");
           return;
         }
         const ok = confirm(`Aprovar este usuário?\n\n${emailToApprove}`);
-        if (!ok) return;
+        if (!ok) {
+          showApprovalMessage("Aprovação cancelada.", "info");
+          return;
+        }
         await window.AppAuth.approveUserEmail(emailToApprove);
-        alert(`Usuário aprovado com sucesso:\n${emailToApprove}`);
+        showApprovalMessage(`Usuário aprovado com sucesso: ${emailToApprove}`, "success");
         params.delete("approve_email");
         const nextQuery = params.toString();
         const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
         window.history.replaceState({}, "", nextUrl);
       } catch (error) {
-        alert(error?.message || "Não foi possível aprovar este usuário.");
+        showApprovalMessage(error?.message || "Não foi possível aprovar este usuário.", "error");
       }
     }
 
