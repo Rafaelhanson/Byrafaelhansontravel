@@ -20,6 +20,9 @@ window.APP_AUTH_CONFIG = {
   // Opcional: webhook para notificar novo cadastro (Telegram, Make, Zapier, etc).
   // Exemplo: "https://hooks.zapier.com/hooks/catch/xxxx/yyyy"
   signupWebhookUrl: "https://dxdmqarllnljhhddyxsz.supabase.co/functions/v1/quick-endpoint",
+  // Opcional: webhook para avisar o usuário que foi aprovado.
+  // Se vazio, usa signupWebhookUrl.
+  approvalWebhookUrl: "https://dxdmqarllnljhhddyxsz.supabase.co/functions/v1/quick-endpoint",
   // URL base para abrir a tela de aprovação no celular/computador.
   // O sistema adiciona automaticamente ?approve_email=<email>.
   // Exemplo: "https://seu-dominio.com/index.html#my-account"

@@ -1359,6 +1359,88 @@
       setTimeout(() => banner.remove(), 6500);
     }
 
+    function showApprovalDialog(email) {
+      return new Promise((resolve) => {
+        const existing = document.getElementById("approvalActionOverlay");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "approvalActionOverlay";
+        overlay.style.position = "fixed";
+        overlay.style.inset = "0";
+        overlay.style.zIndex = "100000";
+        overlay.style.display = "flex";
+        overlay.style.alignItems = "center";
+        overlay.style.justifyContent = "center";
+        overlay.style.background = "rgba(2, 6, 23, .75)";
+        overlay.style.backdropFilter = "blur(4px)";
+
+        const card = document.createElement("div");
+        card.style.width = "min(92vw, 520px)";
+        card.style.borderRadius = "16px";
+        card.style.padding = "18px";
+        card.style.background = "rgba(8, 21, 27, .98)";
+        card.style.border = "1px solid rgba(82, 164, 129, .45)";
+        card.style.boxShadow = "0 18px 45px rgba(0,0,0,.45)";
+        card.style.color = "#e5f5ee";
+
+        const title = document.createElement("h3");
+        title.textContent = "Aprovação de novo usuário";
+        title.style.margin = "0 0 8px";
+        title.style.fontSize = "1.1rem";
+
+        const text = document.createElement("p");
+        text.style.margin = "0 0 12px";
+        text.style.lineHeight = "1.5";
+        text.innerHTML = `Deseja aprovar este usuário?<br><strong>${email}</strong>`;
+
+        const actions = document.createElement("div");
+        actions.style.display = "flex";
+        actions.style.gap = "10px";
+        actions.style.justifyContent = "flex-end";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.textContent = "Cancelar";
+        cancelBtn.style.padding = "10px 14px";
+        cancelBtn.style.borderRadius = "10px";
+        cancelBtn.style.border = "1px solid #3a6256";
+        cancelBtn.style.background = "#102521";
+        cancelBtn.style.color = "#d9efe6";
+        cancelBtn.style.cursor = "pointer";
+
+        const approveBtn = document.createElement("button");
+        approveBtn.type = "button";
+        approveBtn.textContent = "Aprovar usuário";
+        approveBtn.style.padding = "10px 14px";
+        approveBtn.style.borderRadius = "10px";
+        approveBtn.style.border = "1px solid #2f6f57";
+        approveBtn.style.background = "#0f5132";
+        approveBtn.style.color = "#dcfce7";
+        approveBtn.style.cursor = "pointer";
+        approveBtn.style.fontWeight = "700";
+
+        cancelBtn.onclick = () => {
+          overlay.remove();
+          resolve(false);
+        };
+        approveBtn.onclick = () => {
+          approveBtn.disabled = true;
+          approveBtn.textContent = "Aprovando...";
+          overlay.remove();
+          resolve(true);
+        };
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(approveBtn);
+        card.appendChild(title);
+        card.appendChild(text);
+        card.appendChild(actions);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+      });
+    }
+
     async function handleAdminApprovalLink() {
       const params = new URLSearchParams(window.location.search);
       const emailToApprove = String(params.get("approve_email") || "").trim().toLowerCase();
@@ -1371,7 +1453,7 @@
           showApprovalMessage("Aprovação disponível apenas para administradores.", "error");
           return;
         }
-        const ok = confirm(`Aprovar este usuário?\n\n${emailToApprove}`);
+        const ok = await showApprovalDialog(emailToApprove);
         if (!ok) {
           showApprovalMessage("Aprovação cancelada.", "info");
           return;
@@ -1387,7 +1469,61 @@
       }
     }
 
-    window.AppAuth.requireAuth().then(async (isAuthorized) => {
+    async function handleOneClickApprovalLink() {
+      const params = new URLSearchParams(window.location.search);
+      const emailToApprove = String(params.get("approve_email") || "").trim().toLowerCase();
+      const token = String(params.get("approve_token") || "").trim();
+      if (!emailToApprove || !token) return false;
+
+      const webhookUrl =
+        window.AppAuth?.config?.approvalWebhookUrl ||
+        window.AppAuth?.config?.signupWebhookUrl ||
+        window.APP_AUTH_CONFIG?.approvalWebhookUrl ||
+        window.APP_AUTH_CONFIG?.signupWebhookUrl ||
+        "";
+
+      try {
+        showApprovalMessage("Validando aprovação...", "info");
+        if (window.AppAuth && typeof window.AppAuth.approveUserByToken === "function") {
+          await window.AppAuth.approveUserByToken(emailToApprove, token);
+        } else {
+          if (!webhookUrl) throw new Error("Webhook de aprovação não configurado.");
+          const response = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "approve_user_token",
+              email: emailToApprove,
+              token,
+              source: "web"
+            })
+          });
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (_error) {}
+          if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.error || "Não foi possível aprovar por link.");
+          }
+        }
+        showApprovalMessage(`Usuário aprovado com sucesso: ${emailToApprove}`, "success");
+      } catch (error) {
+        showApprovalMessage(error?.message || "Não foi possível aprovar por link.", "error");
+      } finally {
+        params.delete("approve_email");
+        params.delete("approve_token");
+        const nextQuery = params.toString();
+        const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+      return true;
+    }
+
+    (async () => {
+      const handledByToken = await handleOneClickApprovalLink();
+      if (handledByToken) return;
+
+      const isAuthorized = await window.AppAuth.requireAuth();
       if (!isAuthorized) return;
       await handleAdminApprovalLink();
       if (window.AppAuth && typeof window.AppAuth.bindLogoutButton === "function") {
@@ -1400,7 +1536,7 @@
       const appScript = document.createElement("script");
       appScript.src = "./app.js";
       document.body.appendChild(appScript);
-    });
+    })();
   </script>
   <script src="./pwa-register.js"></script>
   <script src="./translate-switcher.js"></script>
