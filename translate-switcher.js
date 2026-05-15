@@ -129,7 +129,9 @@
     var style = document.createElement("style");
     style.textContent = [
       "body.roadtrip-fade-out{opacity:.18;transition:opacity .2s ease}",
-      ".roadtrip-lang-wrap{position:fixed;right:14px;bottom:14px;z-index:99999;display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(8,26,24,.86);backdrop-filter:blur(8px);box-shadow:0 8px 20px rgba(0,0,0,.25)}",
+      ".roadtrip-lang-wrap{display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(8,26,24,.86);backdrop-filter:blur(8px);box-shadow:0 8px 20px rgba(0,0,0,.25)}",
+      ".roadtrip-lang-wrap.in-header{position:static;z-index:20}",
+      ".roadtrip-lang-wrap.floating{position:fixed;right:14px;bottom:14px;z-index:99999}",
       ".roadtrip-lang-btn{border:1px solid rgba(151,210,184,.45);background:transparent;color:#e9fff4;border-radius:999px;padding:.42rem .62rem;font:700 .75rem/1 Inter,system-ui,sans-serif;cursor:pointer;min-width:42px}",
       ".roadtrip-lang-btn.active{background:#1f7f63;border-color:#33a17f;color:#fff}",
       "#google_translate_element{position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none}",
@@ -142,7 +144,8 @@
       ".goog-text-highlight,.goog-text-highlight *{background:none!important;background-color:transparent!important;box-shadow:none!important;border:none!important}",
       "font.goog-text-highlight{background:none!important;background-color:transparent!important;box-shadow:none!important;border:none!important}",
       "html,body{margin-top:0!important;top:0!important}",
-      "body{top:0!important}"
+      "body{top:0!important}",
+      "@media (max-width:900px){.roadtrip-lang-wrap.in-header{order:99}}"
     ].join("");
     document.head.appendChild(style);
 
@@ -165,7 +168,14 @@
       wrap.appendChild(btn);
     });
 
-    document.body.appendChild(wrap);
+    var accountBlock = document.querySelector(".top-right .account");
+    if (accountBlock && accountBlock.parentNode) {
+      wrap.classList.add("in-header");
+      accountBlock.insertAdjacentElement("afterend", wrap);
+    } else {
+      wrap.classList.add("floating");
+      document.body.appendChild(wrap);
+    }
   }
 
   function bootGoogleTranslate() {
