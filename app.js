@@ -898,23 +898,10 @@ function readRoutesFromStorageKey(key) {
 }
 
 function readAllLocalRouteCandidates(currentKey) {
-  const routeKeys = safeListStorageKeys()
-    .filter((key) =>
-      key === "myRoutes" ||
-      key === "myRoutes:lastKnown" ||
-      key.startsWith("myRoutes:") ||
-      key === "savedRoutes" ||
-      key === "routes" ||
-      /^routes:/i.test(key) ||
-      /^savedRoutes:/i.test(key)
-    );
-
-  if (!routeKeys.includes(currentKey)) routeKeys.unshift(currentKey);
-  const allRoutes = routeKeys
-    .map((key) => readRoutesFromStorageKey(key))
-    .filter((list) => Array.isArray(list) && list.length)
-    .flat();
-  return dedupeRoutesByFingerprint(normalizeRoutesData(allRoutes));
+  // Importante: manter isolamento total por usuário.
+  // Só lê a chave específica do usuário logado para não misturar rotas entre contas.
+  const currentRoutes = readRoutesFromStorageKey(currentKey);
+  return dedupeRoutesByFingerprint(normalizeRoutesData(currentRoutes));
 }
 
 async function getSupabaseSession() {
@@ -1600,7 +1587,6 @@ async function readSavedRoutes(options = {}) {
   const finalLocalRoutes = dedupeRoutesByFingerprint(normalizeArrayData(mergedLocal));
   if (finalLocalRoutes.length) {
     safeSetStorage(key, JSON.stringify(finalLocalRoutes));
-    safeSetStorage("myRoutes:lastKnown", JSON.stringify(finalLocalRoutes));
   }
 
   const cloudData = await readCloudUserData(cloudTimeoutMs);
@@ -1615,7 +1601,6 @@ async function readSavedRoutes(options = {}) {
   if (!arraysEqualByJson(finalLocalRoutes, merged)) {
     safeSetStorage(key, JSON.stringify(merged));
   }
-  safeSetStorage("myRoutes:lastKnown", JSON.stringify(merged));
 
   return merged;
 }
@@ -1624,7 +1609,6 @@ async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
   const safeRoutes = dedupeRoutesByFingerprint(normalizeRoutesData(routes));
   safeSetStorage(key, JSON.stringify(safeRoutes));
-  safeSetStorage("myRoutes:lastKnown", JSON.stringify(safeRoutes));
   const synced = await writeCloudUserDataField("routes", safeRoutes);
   if (!synced) await queuePendingCloudField("routes", safeRoutes);
   return synced;
@@ -2222,7 +2206,8 @@ function renderSavedRoutes(routes = []) {
 }
 
 async function refreshSavedRoutes() {
-  const localRoutes = normalizeArrayData(readAllLocalRouteCandidates("myRoutes:lastKnown"))
+  const routesKey = await getRoutesStorageKey();
+  const localRoutes = normalizeArrayData(readAllLocalRouteCandidates(routesKey))
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   renderSavedRoutesV2(localRoutes);
 
