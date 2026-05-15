@@ -191,6 +191,15 @@
       background: rgba(19, 49, 43, 0.9);
       box-shadow: 0 12px 26px rgba(0,0,0,.28);
     }
+    .lp-price{
+      white-space: nowrap;
+    }
+    @media (max-width: 700px){
+      .lp-price{
+        display:block;
+        margin-top:4px;
+      }
+    }
     .app-intro{
       margin-top: 14px;
       background: rgba(15, 31, 34, 0.62);
@@ -261,7 +270,7 @@
     </section>
 
     <div class="lp-link">
-      <a id="landingLink" href="https://planejadorinteligentedeviagem.space/" target="_blank" rel="noopener noreferrer">Assine o acesso antecipado por apenas R$ 9,90.</a>
+      <a id="landingLink" href="https://planejadorinteligentedeviagem.space/" target="_blank" rel="noopener noreferrer">Assine o acesso antecipado por apenas <span class="lp-price">R$ 9,90.</span></a>
     </div>
 
     <section class="app-intro" aria-label="Prévia do aplicativo">
