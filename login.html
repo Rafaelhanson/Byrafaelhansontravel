@@ -191,6 +191,53 @@
       background: rgba(19, 49, 43, 0.9);
       box-shadow: 0 12px 26px rgba(0,0,0,.28);
     }
+    .app-intro{
+      margin-top: 14px;
+      background: rgba(15, 31, 34, 0.62);
+      border: 1px solid rgba(39, 68, 63, 0.4);
+      border-radius: 18px;
+      padding: 16px 14px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+    }
+    .app-intro p{
+      margin: 0 0 12px;
+      color: #d7e9e3;
+      font: 500 .92rem/1.55 Inter, system-ui, sans-serif;
+      text-align: left;
+    }
+    .app-intro-gallery{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .app-intro-gallery figure{
+      margin: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(121, 177, 155, 0.25);
+      background: rgba(8, 24, 22, 0.8);
+      box-shadow: 0 8px 18px rgba(0,0,0,.22);
+    }
+    .app-intro-gallery img{
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    @media (max-width: 720px){
+      .app-intro-gallery{
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+      }
+      .app-intro-gallery::-webkit-scrollbar{height: 0}
+      .app-intro-gallery figure{
+        flex: 0 0 88%;
+        scroll-snap-align: start;
+      }
+    }
   </style>
 </head>
 <body>
@@ -229,8 +276,18 @@
     </section>
 
     <div class="lp-link">
-      <a id="landingLink" href="./ebook.html">Conhe&ccedil;a o Guia Completo Patag&ocirc;nia</a>
+      <a id="landingLink" href="https://planejadorinteligentedeviagem.space/" target="_blank" rel="noopener noreferrer">Assine o acesso antecipado por apenas R$ 9,90.</a>
     </div>
+
+    <section class="app-intro" aria-label="Prévia do aplicativo">
+      <p>No aplicativo você vai encontrar: planejamento de rota customizada, cálculo de gasto de combustível, controle dos custos da sua viagem e colaboração com outros viajantes. Tudo em um só aplicativo.</p>
+      <div class="app-intro-gallery">
+        <figure><img src="./login-preview-1.png" alt="Prévia do mapa colaborativo com ponto de apoio"></figure>
+        <figure><img src="./login-preview-2.png" alt="Prévia do painel de gastos da viagem"></figure>
+        <figure><img src="./login-preview-3.png" alt="Prévia de rota longa na América do Sul"></figure>
+        <figure><img src="./login-preview-4.png" alt="Prévia de rota planejada nos Estados Unidos"></figure>
+      </div>
+    </section>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -293,17 +350,13 @@
       const link = document.getElementById("landingLink");
       if (!link) return;
 
-      // Local (file://): abre pelo servidor local
-      if (window.location.protocol === "file:") {
-        link.href = "http://127.0.0.1:5500/ebook.html";
-        return;
-      }
-
-      // Mesmo domínio (deploy)
-      link.href = "./ebook.html";
+      link.href = "https://planejadorinteligentedeviagem.space/";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
     })();
 bootstrap();
   </script>
   <script src="./translate-switcher.js"></script>
 </body>
 </html>
+
