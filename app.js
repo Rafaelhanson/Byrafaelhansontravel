@@ -480,7 +480,6 @@ const mobileMenuPanel = document.getElementById("mobileMenuPanel");
 const accountMenuBtn = document.getElementById("accountMenuBtn");
 const accountMenuPanel = document.getElementById("accountMenuPanel");
 const styleEl = document.getElementById("style");
-const daysInputEl = document.getElementById("daysInput");
 const dayLimitModeEl = document.getElementById("dayLimitMode");
 const dayLimitValueEl = document.getElementById("dayLimitValue");
 const dayLimitLabelEl = document.getElementById("dayLimitLabel");
@@ -609,7 +608,6 @@ let myCollaborationsCache = [];
 let routeOpenContext = "planner";
 let pendingOpenRouteContext = null;
 let mapBackTargetHash = null;
-let daysInputTouchedByUser = false;
 
 const ROUTE_CITY_MARKER_NAMES = new Set([
   "Erechim", "Passo Fundo", "Santa Maria", "Uruguaiana", "Paso de los Libres", "Itaqui", "Sao Borja",
@@ -1493,8 +1491,6 @@ function clearPlannerData() {
   dest3Input.value = "";
   dest4Input.value = "";
   dest5Input.value = "";
-  daysInputEl.value = "";
-  daysInputTouchedByUser = false;
   dayLimitModeEl.value = "hours";
   updateDayLimitUi();
   dayLimitValueEl.value = "";
@@ -2567,11 +2563,6 @@ if (dayLimitModeEl) {
   updateDayLimitUi();
 }
 
-if (daysInputEl) {
-  daysInputEl.addEventListener("input", () => {
-    daysInputTouchedByUser = true;
-  });
-}
 
 function normalizeName(value) {
   return value
@@ -2673,7 +2664,6 @@ async function applySavedRoute(route) {
   }
 
   if (styleEl && route.style) styleEl.value = route.style;
-  if (daysInputEl) daysInputEl.value = route.daysRequested || route.totalDays || "";
   if (dayLimitModeEl && route.dayLimitMode) dayLimitModeEl.value = route.dayLimitMode;
   updateDayLimitUi();
   if (dayLimitValueEl && route.dayLimitValue) dayLimitValueEl.value = route.dayLimitValue;
@@ -2725,7 +2715,6 @@ function applySavedSnapshotToUi(route) {
       sumFuelCostEl.textContent = "-";
     }
   }
-  if (daysInputEl) daysInputEl.value = String(route.totalDays || route.days.length || "");
   daysOutEl.innerHTML = renderDaysHtmlEnhanced(route.days, route.style || styleEl?.value || "fast", route.dayLimitMode || dayLimitModeEl?.value || "km");
 
   const savedBoundaryPoints = Array.isArray(route.boundaryPoints) ? route.boundaryPoints : [];
@@ -4190,17 +4179,11 @@ async function generatePlan() {
       sumFuelCostEl.textContent = estimatedFuelCost !== null ? formatMoneyValue(estimatedFuelCost) : "-";
     }
 
-    const requestedDays = Number(daysInputEl?.value);
-    const hasRequestedDays = daysInputTouchedByUser && Number.isFinite(requestedDays) && requestedDays > 0;
     const limitMode = dayLimitModeEl?.value === "hours" ? "hours" : "km";
     const requestedLimit = Number(dayLimitValueEl?.value);
     const hasRequestedLimit = Number.isFinite(requestedLimit) && requestedLimit > 0;
 
     let dayLimit = hasRequestedLimit ? requestedLimit : limitMode === "hours" ? 8 : 650;
-    if (!hasRequestedLimit && hasRequestedDays) {
-      dayLimit = limitMode === "hours" ? Math.max(1, totalHours / requestedDays) : Math.max(80, totalKm / requestedDays);
-      if (dayLimitValueEl) dayLimitValueEl.value = limitMode === "hours" ? dayLimit.toFixed(1) : String(Math.round(dayLimit));
-    }
 
     const activeCumulative = limitMode === "hours" ? cumulativeHours : cumulativeKm;
     const totalMetric = activeCumulative[activeCumulative.length - 1] || 0;
@@ -4322,7 +4305,7 @@ async function generatePlan() {
       style: styleEl.value,
       dayLimitMode: limitMode,
       dayLimitValue: dayLimit,
-      daysRequested: hasRequestedDays ? requestedDays : null,
+      daysRequested: null,
       totalKm: Math.round(totalKm),
       totalHours: Number(totalHours.toFixed(1)),
       fuelCostPerLiter,
