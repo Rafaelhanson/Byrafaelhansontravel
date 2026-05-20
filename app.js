@@ -1005,7 +1005,42 @@ async function getCurrentUserId() {
 }
 
 function getPendingSyncStorageKey(email = "guest") {
-  return `pendingCloudSync:${String(email || "guest").trim().toLowerCase()}`;
+  const normalized = String(email || "guest").trim().toLowerCase() || "guest";
+  return `pendingCloudSync:${normalized}`;
+}
+
+function clearUserScopedCaches() {
+  routesStorageKeyCache = null;
+  expensesStorageKeyCache = null;
+  routesStorageKeyCacheEmail = null;
+  expensesStorageKeyCacheEmail = null;
+  cloudDataCache = null;
+  cloudDataLoadedForUser = null;
+}
+
+function bindSessionChangeSyncGuard() {
+  const sb = initSupabaseClient();
+  if (!sb?.auth || typeof sb.auth.onAuthStateChange !== "function") return;
+
+  sb.auth.onAuthStateChange((_event, session) => {
+    const user = session?.user || null;
+    const nextEmail = normalizeUserEmail(user?.email || "");
+    const previousEmail = normalizeUserEmail(routesStorageKeyCacheEmail || currentUserCache?.email || "");
+
+    currentUserCache = user;
+    if (nextEmail) rememberUserEmail(nextEmail);
+
+    if (previousEmail && nextEmail && previousEmail !== nextEmail) {
+      clearUserScopedCaches();
+      refreshSavedRoutes(0);
+      refreshTravelExpenses(0);
+      return;
+    }
+
+    if (!nextEmail) {
+      clearUserScopedCaches();
+    }
+  });
 }
 
 function setSyncStatus(element, message = "", kind = "info") {
@@ -2273,8 +2308,20 @@ function renderTravelExpenses() {
   renderExpenseReport(selectedTrip, reportMode, reportLanguage);
 }
 
-async function refreshTravelExpenses() {
+async function refreshTravelExpenses(attempt = 0) {
   travelExpensesLoaded = false;
+  const expensesKey = await getExpensesStorageKey();
+  if (!expensesKey) {
+    setTripsSyncStatus("Aguarde alguns segundos: carregando sua sessão para buscar seus gastos...", "loading");
+    if (attempt < 8) {
+      setTimeout(() => {
+        refreshTravelExpenses(attempt + 1);
+      }, 450);
+    } else {
+      setTripsSyncStatus("Não foi possível identificar a sessão agora. Recarregue a página.", "warn");
+    }
+    return;
+  }
   const localTrips = await readLocalTravelExpenses();
   if (localTrips.length) {
     setTripsSyncStatus("Mostrando dados locais. Sincronizando com a nuvem...", "loading");
@@ -2355,12 +2402,19 @@ function renderSavedRoutes(routes = []) {
     .join("");
 }
 
-async function refreshSavedRoutes() {
+async function refreshSavedRoutes(attempt = 0) {
   savedRoutesLoaded = false;
   const routesKey = await getRoutesStorageKey();
   if (!routesKey) {
     renderSavedRoutesV2([]);
-    setSavedRoutesSyncStatus("Aguarde alguns segundos: preparando suas rotas na conta logada...", "loading");
+    setSavedRoutesSyncStatus("Aguarde alguns segundos: carregando sua sessão para buscar suas rotas...", "loading");
+    if (attempt < 8) {
+      setTimeout(() => {
+        refreshSavedRoutes(attempt + 1);
+      }, 450);
+    } else {
+      setSavedRoutesSyncStatus("Não foi possível identificar a sessão agora. Recarregue a página.", "warn");
+    }
     return;
   }
   const localRoutes = normalizeArrayData(readAllLocalRouteCandidates(routesKey))
@@ -5106,6 +5160,7 @@ campingSearchCityEl?.addEventListener("keydown", (event) => {
 bindMobileMenu();
 updateCampingSearchModeUi();
 startTextRepairObserver();
+bindSessionChangeSyncGuard();
 refreshLiveCurrencyRates().then(() => {
   const currentTrip = getSelectedExpenseTrip();
   updateExpenseRateUi(currentTrip);
