@@ -506,6 +506,7 @@ const localDetailBodyEl = document.getElementById("localDetailBody");
 const backToPlacesBtn = document.getElementById("backToPlaces");
 const savedRoutesListEl = document.getElementById("savedRoutesList");
 const savedRoutesEmptyEl = document.getElementById("savedRoutesEmpty");
+const savedRoutesSyncStatusEl = document.getElementById("savedRoutesSyncStatus");
 const userCollabsListEl = document.getElementById("userCollabsList");
 const userCollabsEmptyEl = document.getElementById("userCollabsEmpty");
 const collabDetailSectionEl = document.getElementById("collab-detail");
@@ -554,6 +555,7 @@ const expensePieEl = document.getElementById("expensePie");
 const expenseLegendEl = document.getElementById("expenseLegend");
 const tripsListEl = document.getElementById("tripsList");
 const tripsEmptyEl = document.getElementById("tripsEmpty");
+const tripsSyncStatusEl = document.getElementById("tripsSyncStatus");
 const expensesListEl = document.getElementById("expensesList");
 const expensesEmptyEl = document.getElementById("expensesEmpty");
 const clearExpenseSelectionBtn = document.getElementById("clearExpenseSelectionBtn");
@@ -586,13 +588,16 @@ let travelExpenseTrips = [];
 let selectedExpenseTripId = null;
 let expensesListExpanded = false;
 let travelExpensesLoaded = false;
+let savedRoutesLoaded = false;
 let travelExpensesPersistQueue = Promise.resolve(true);
 let pendingExpenseTripHash = "";
 let currentUserCache = null;
+let lastKnownUserEmailCache = null;
 let cloudDataCache = null;
 let cloudDataLoadedForUser = null;
 let lastCloudSyncError = "";
 const volatileStorageFallback = new Map();
+const LAST_KNOWN_USER_EMAIL_STORAGE_KEY = "lastKnownUserEmail";
 let communityLayer = null;
 let communityPoints = [];
 let showCommunityPoints = true;
@@ -931,11 +936,63 @@ async function getCurrentSessionUser() {
   return null;
 }
 
-async function getCurrentUserEmail() {
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeUserEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return normalized.includes("@") ? normalized : "";
+}
+
+function rememberUserEmail(email) {
+  const normalized = normalizeUserEmail(email);
+  if (!normalized) return "";
+  if (lastKnownUserEmailCache !== normalized) {
+    lastKnownUserEmailCache = normalized;
+    safeSetStorage(LAST_KNOWN_USER_EMAIL_STORAGE_KEY, normalized);
+  }
+  return normalized;
+}
+
+function getRememberedUserEmail() {
+  if (lastKnownUserEmailCache) return lastKnownUserEmailCache;
+  const persisted = normalizeUserEmail(safeGetStorage(LAST_KNOWN_USER_EMAIL_STORAGE_KEY));
+  if (persisted) lastKnownUserEmailCache = persisted;
+  return persisted || "";
+}
+
+async function readLiveSessionEmail() {
   const cachedUser = await getCurrentSessionUser();
-  if (cachedUser?.email) return cachedUser.email.trim().toLowerCase();
+  if (cachedUser?.email) return rememberUserEmail(cachedUser.email);
   const sbSession = await getSupabaseSession();
-  if (sbSession?.user?.email) return sbSession.user.email.trim().toLowerCase();
+  if (sbSession?.user?.email) return rememberUserEmail(sbSession.user.email);
+  return "";
+}
+
+async function getCurrentUserEmail(options = {}) {
+  const waitForSessionMs = Number.isFinite(options.waitForSessionMs) ? Math.max(0, options.waitForSessionMs) : 0;
+  const allowRemembered = options.allowRemembered === true;
+  const allowFallback = options.allowFallback !== false;
+
+  let liveEmail = await readLiveSessionEmail();
+  if (liveEmail) return liveEmail;
+
+  if (waitForSessionMs > 0) {
+    const deadline = Date.now() + waitForSessionMs;
+    while (Date.now() < deadline) {
+      await wait(120);
+      liveEmail = await readLiveSessionEmail();
+      if (liveEmail) return liveEmail;
+    }
+  }
+
+  if (allowRemembered) {
+    const rememberedEmail = getRememberedUserEmail();
+    if (rememberedEmail) return rememberedEmail;
+  }
+
+  if (!allowFallback) return "";
   return "usuario@sem-email";
 }
 
@@ -951,8 +1008,31 @@ function getPendingSyncStorageKey(email = "guest") {
   return `pendingCloudSync:${String(email || "guest").trim().toLowerCase()}`;
 }
 
+function setSyncStatus(element, message = "", kind = "info") {
+  if (!element) return;
+  const text = normalizeUiText(message || "");
+  element.textContent = text;
+  element.hidden = !text;
+  const palette = {
+    info: "#9db4ad",
+    loading: "#9db4ad",
+    success: "#8ee8b1",
+    warn: "#f7d27b",
+    error: "#fca5a5"
+  };
+  element.style.color = palette[kind] || palette.info;
+}
+
+function setSavedRoutesSyncStatus(message = "", kind = "info") {
+  setSyncStatus(savedRoutesSyncStatusEl, message, kind);
+}
+
+function setTripsSyncStatus(message = "", kind = "info") {
+  setSyncStatus(tripsSyncStatusEl, message, kind);
+}
+
 async function queuePendingCloudField(field, value) {
-  const email = await getCurrentUserEmail();
+  const email = await getCurrentUserEmail({ waitForSessionMs: 1200, allowRemembered: false, allowFallback: false });
   const key = getPendingSyncStorageKey(email);
   let payload = {};
   try {
@@ -966,7 +1046,7 @@ async function queuePendingCloudField(field, value) {
 }
 
 async function flushPendingCloudSync() {
-  const email = await getCurrentUserEmail();
+  const email = await getCurrentUserEmail({ waitForSessionMs: 1200, allowRemembered: false, allowFallback: false });
   const key = getPendingSyncStorageKey(email);
   let payload = {};
   try {
@@ -978,12 +1058,33 @@ async function flushPendingCloudSync() {
   const fields = ["routes", "trips"].filter((field) => Array.isArray(payload[field]));
   if (!fields.length) return true;
 
+  if (fields.includes("routes")) {
+    setSavedRoutesSyncStatus("Sincronizando rotas pendentes...", "loading");
+  }
+  if (fields.includes("trips")) {
+    setTripsSyncStatus("Sincronizando gastos pendentes...", "loading");
+  }
+
   for (const field of fields) {
     const ok = await writeCloudUserDataField(field, payload[field]);
-    if (!ok) return false;
+    if (!ok) {
+      if (field === "routes") {
+        setSavedRoutesSyncStatus("Falha na nuvem. Rotas seguem salvas neste dispositivo e serão reenviadas automaticamente.", "warn");
+      }
+      if (field === "trips") {
+        setTripsSyncStatus("Falha na nuvem. Gastos seguem salvos neste dispositivo e serão reenviados automaticamente.", "warn");
+      }
+      return false;
+    }
   }
 
   safeRemoveStorage(key);
+  if (fields.includes("routes")) {
+    setSavedRoutesSyncStatus("Rotas sincronizadas com a nuvem.", "success");
+  }
+  if (fields.includes("trips")) {
+    setTripsSyncStatus("Gastos sincronizados com a nuvem.", "success");
+  }
   return true;
 }
 
@@ -1080,9 +1181,15 @@ function mergeByIdKeepNewest(primary = [], secondary = []) {
 async function readCloudUserData(timeoutMs = 2500) {
   const sb = initSupabaseClient();
   const userId = await getCurrentUserId();
-  if (!sb || !userId) return null;
+  if (!sb || !userId) {
+    lastCloudSyncError = "Sem sessão autenticada no Supabase.";
+    return null;
+  }
 
-  if (cloudDataLoadedForUser === userId && cloudDataCache) return cloudDataCache;
+  if (cloudDataLoadedForUser === userId && cloudDataCache) {
+    lastCloudSyncError = "";
+    return cloudDataCache;
+  }
 
   try {
     const table = getUserDataTableName();
@@ -1091,10 +1198,16 @@ async function readCloudUserData(timeoutMs = 2500) {
       .select("user_id, routes, trips, updated_at")
       .eq("user_id", userId)
       .maybeSingle(), timeoutMs);
-    if (!response) return null;
+    if (!response) {
+      lastCloudSyncError = "Tempo limite para leitura da nuvem.";
+      return null;
+    }
     const { data, error } = response;
 
-    if (error) return null;
+    if (error) {
+      lastCloudSyncError = error.message || "Falha ao ler dados no Supabase.";
+      return null;
+    }
 
     cloudDataCache = {
       user_id: userId,
@@ -1102,8 +1215,10 @@ async function readCloudUserData(timeoutMs = 2500) {
       trips: normalizeArrayData(data?.trips)
     };
     cloudDataLoadedForUser = userId;
+    lastCloudSyncError = "";
     return cloudDataCache;
   } catch (_error) {
+    lastCloudSyncError = "Erro de conexão ao ler dados no Supabase.";
     return null;
   }
 }
@@ -1567,7 +1682,8 @@ async function shareRoute(route) {
 }
 
 async function getRoutesStorageKey() {
-  const email = await getCurrentUserEmail();
+  const email = await getCurrentUserEmail({ waitForSessionMs: 1200, allowRemembered: false, allowFallback: false });
+  if (!email) return null;
   if (routesStorageKeyCache && routesStorageKeyCacheEmail === email) return routesStorageKeyCache;
   routesStorageKeyCacheEmail = email;
   routesStorageKeyCache = `myRoutes:${email}`;
@@ -1577,6 +1693,7 @@ async function getRoutesStorageKey() {
 async function readSavedRoutes(options = {}) {
   const cloudTimeoutMs = Number.isFinite(options.cloudTimeoutMs) ? options.cloudTimeoutMs : 2500;
   const key = await getRoutesStorageKey();
+  if (!key) return [];
   const localRoutes = normalizeRoutesData(readRoutesFromStorageKey(key));
   const localCandidates = normalizeRoutesData(readAllLocalRouteCandidates(key));
   const mergedLocal = mergeByIdKeepNewest(localCandidates, localRoutes);
@@ -1603,15 +1720,26 @@ async function readSavedRoutes(options = {}) {
 
 async function writeSavedRoutes(routes) {
   const key = await getRoutesStorageKey();
+  if (!key) {
+    setSavedRoutesSyncStatus("Aguarde alguns segundos e tente novamente. Sessão do usuário ainda está carregando.", "warn");
+    return false;
+  }
   const safeRoutes = dedupeRoutesByFingerprint(normalizeRoutesData(routes));
+  setSavedRoutesSyncStatus("Salvando rotas...", "loading");
   safeSetStorage(key, JSON.stringify(safeRoutes));
   const synced = await writeCloudUserDataField("routes", safeRoutes);
-  if (!synced) await queuePendingCloudField("routes", safeRoutes);
+  if (!synced) {
+    await queuePendingCloudField("routes", safeRoutes);
+    setSavedRoutesSyncStatus("Rotas salvas neste dispositivo. Tentando sincronizar com a nuvem em segundo plano...", "warn");
+  } else {
+    setSavedRoutesSyncStatus("Rotas sincronizadas com a nuvem.", "success");
+  }
   return synced;
 }
 
 async function getExpensesStorageKey() {
-  const email = await getCurrentUserEmail();
+  const email = await getCurrentUserEmail({ waitForSessionMs: 1200, allowRemembered: false, allowFallback: false });
+  if (!email) return null;
   if (expensesStorageKeyCache && expensesStorageKeyCacheEmail === email) return expensesStorageKeyCache;
   expensesStorageKeyCacheEmail = email;
   expensesStorageKeyCache = `travelExpenses:${email}`;
@@ -1620,6 +1748,7 @@ async function getExpensesStorageKey() {
 
 async function readLocalTravelExpenses() {
   const key = await getExpensesStorageKey();
+  if (!key) return [];
   try {
     const raw = safeGetStorage(key);
     if (!raw) return [];
@@ -1632,6 +1761,7 @@ async function readLocalTravelExpenses() {
 
 async function readTravelExpenses() {
   const key = await getExpensesStorageKey();
+  if (!key) return [];
   const localTrips = await readLocalTravelExpenses();
 
   const cloudData = await readCloudUserData();
@@ -1652,10 +1782,20 @@ async function readTravelExpenses() {
 
 async function writeTravelExpenses(trips) {
   const key = await getExpensesStorageKey();
+  if (!key) {
+    setTripsSyncStatus("Aguarde alguns segundos e tente novamente. Sessão do usuário ainda está carregando.", "warn");
+    return false;
+  }
   const safeTrips = normalizeArrayData(trips);
+  setTripsSyncStatus("Salvando gastos...", "loading");
   safeSetStorage(key, JSON.stringify(safeTrips));
   const synced = await writeCloudUserDataField("trips", safeTrips);
-  if (!synced) await queuePendingCloudField("trips", safeTrips);
+  if (!synced) {
+    await queuePendingCloudField("trips", safeTrips);
+    setTripsSyncStatus("Gastos salvos neste dispositivo. Tentando sincronizar com a nuvem em segundo plano...", "warn");
+  } else {
+    setTripsSyncStatus("Gastos sincronizados com a nuvem.", "success");
+  }
   return synced;
 }
 
@@ -2066,7 +2206,7 @@ function renderTravelExpenses() {
       : "Abra uma viagem em 'Gastos de viagem' para comeÃ§ar a lanÃ§ar despesas.";
   }
 
-  tripsEmptyEl.hidden = travelExpenseTrips.length > 0;
+  tripsEmptyEl.hidden = travelExpenseTrips.length > 0 || !travelExpensesLoaded;
   tripsListEl.innerHTML = travelExpenseTrips
     .map((trip) => {
       const total = calculateTripExpenseTotal(trip);
@@ -2136,6 +2276,12 @@ function renderTravelExpenses() {
 async function refreshTravelExpenses() {
   travelExpensesLoaded = false;
   const localTrips = await readLocalTravelExpenses();
+  if (localTrips.length) {
+    setTripsSyncStatus("Mostrando dados locais. Sincronizando com a nuvem...", "loading");
+  } else {
+    setTripsSyncStatus("Carregando gastos da viagem...", "loading");
+  }
+
   if (localTrips.length || !travelExpenseTrips.length) {
     travelExpenseTrips = localTrips;
     renderTravelExpenses();
@@ -2150,6 +2296,14 @@ async function refreshTravelExpenses() {
     selectedExpenseTripId = null;
   }
   renderTravelExpenses();
+
+  if (lastCloudSyncError) {
+    setTripsSyncStatus("Nuvem indisponível no momento. Exibindo os dados locais salvos neste dispositivo.", "warn");
+  } else if (travelExpenseTrips.length) {
+    setTripsSyncStatus("Gastos carregados e sincronizados.", "success");
+  } else {
+    setTripsSyncStatus("Nenhuma viagem cadastrada ainda.", "info");
+  }
 
   if (pendingExpenseTripHash) {
     const targetHash = pendingExpenseTripHash;
@@ -2180,7 +2334,7 @@ function renderSavedRoutes(routes = []) {
   if (!savedRoutesListEl || !savedRoutesEmptyEl) return;
   if (!routes.length) {
     savedRoutesListEl.innerHTML = "";
-    savedRoutesEmptyEl.hidden = false;
+    savedRoutesEmptyEl.hidden = !savedRoutesLoaded;
     return;
   }
   savedRoutesEmptyEl.hidden = true;
@@ -2202,17 +2356,46 @@ function renderSavedRoutes(routes = []) {
 }
 
 async function refreshSavedRoutes() {
+  savedRoutesLoaded = false;
   const routesKey = await getRoutesStorageKey();
+  if (!routesKey) {
+    renderSavedRoutesV2([]);
+    setSavedRoutesSyncStatus("Aguarde alguns segundos: preparando suas rotas na conta logada...", "loading");
+    return;
+  }
   const localRoutes = normalizeArrayData(readAllLocalRouteCandidates(routesKey))
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  renderSavedRoutesV2(localRoutes);
+  if (localRoutes.length) {
+    renderSavedRoutesV2(localRoutes);
+    setSavedRoutesSyncStatus("Mostrando rotas locais. Sincronizando com a nuvem...", "loading");
+  } else {
+    renderSavedRoutesV2([]);
+    setSavedRoutesSyncStatus("Carregando rotas salvas...", "loading");
+  }
 
-  const routes = await readSavedRoutes({
-    cloudTimeoutMs: localRoutes.length ? 1200 : 6000
-  });
-  routes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  if (!arraysEqualByJson(localRoutes, routes)) {
-    renderSavedRoutesV2(routes);
+  try {
+    const routes = await readSavedRoutes({
+      cloudTimeoutMs: localRoutes.length ? 1200 : 6000
+    });
+    routes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    savedRoutesLoaded = true;
+    if (!arraysEqualByJson(localRoutes, routes)) {
+      renderSavedRoutesV2(routes);
+    } else {
+      renderSavedRoutesV2(localRoutes);
+    }
+
+    if (lastCloudSyncError) {
+      setSavedRoutesSyncStatus("Nuvem indisponível no momento. Exibindo as rotas locais salvas neste dispositivo.", "warn");
+    } else if (routes.length) {
+      setSavedRoutesSyncStatus("Rotas carregadas e sincronizadas.", "success");
+    } else {
+      setSavedRoutesSyncStatus("Nenhuma rota salva ainda.", "info");
+    }
+  } catch (_error) {
+    savedRoutesLoaded = true;
+    renderSavedRoutesV2(localRoutes);
+    setSavedRoutesSyncStatus("Não foi possível sincronizar agora. Exibindo rotas locais.", "warn");
   }
 }
 
@@ -2220,7 +2403,7 @@ function renderSavedRoutesV2(routes = []) {
   if (!savedRoutesListEl || !savedRoutesEmptyEl) return;
   if (!routes.length) {
     savedRoutesListEl.innerHTML = "";
-    savedRoutesEmptyEl.hidden = false;
+    savedRoutesEmptyEl.hidden = !savedRoutesLoaded;
     return;
   }
   savedRoutesEmptyEl.hidden = true;
@@ -2407,7 +2590,7 @@ const RECENT_SEARCHES_LIMIT = 6;
 const RECENT_SEARCHES_GLOBAL_KEY = "recentSearches:global";
 
 async function getRecentSearchesKey(kind) {
-  const email = await getCurrentUserEmail();
+  const email = await getCurrentUserEmail({ waitForSessionMs: 800, allowRemembered: false, allowFallback: false });
   return `recentSearches:${kind}:${email}`;
 }
 
